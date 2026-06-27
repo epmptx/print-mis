@@ -292,13 +292,51 @@ select:focus, input:focus { border-color:var(--accent); background:#fff; }
 .scan-close { position:absolute; top:24px; right:24px; z-index:20; width:52px; height:52px; border-radius:50%; background:rgba(0,0,0,.6); border:2px solid rgba(255,255,255,.3); color:white; font-size:1.4rem; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:background .2s; }
 .scan-close:hover { background:rgba(231,76,60,.7); }
 @keyframes successFlash { 0%{opacity:1} 100%{opacity:0} }
-.scan-success-flash { position:fixed; inset:0; z-index:1100; background:rgba(39,174,96,.4); pointer-events:none; animation:successFlash .5s ease-out forwards; }
+/* LOGIN SCREEN */
+.login-overlay { position:fixed; inset:0; z-index:9999; background:#1a1a2e; display:flex; align-items:center; justify-content:center; flex-direction:column; }
+.login-box { background:#fff; border-radius:12px; padding:36px 32px; width:100%; max-width:360px; box-shadow:0 8px 40px rgba(0,0,0,0.4); }
+.login-logo { text-align:center; margin-bottom:24px; }
+.login-logo h1 { font-size:1.4rem; font-weight:900; letter-spacing:.1em; text-transform:uppercase; color:var(--accent); }
+.login-logo p { font-size:.72rem; color:var(--muted); margin-top:4px; letter-spacing:.08em; text-transform:uppercase; }
+.login-field { margin-bottom:14px; }
+.login-field label { display:block; font-size:.68rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin-bottom:6px; }
+.login-field input { width:100%; background:#f8f8f8; border:1px solid var(--border); border-radius:6px; color:var(--text); font-family:'Barlow',sans-serif; font-size:.95rem; padding:11px 14px; outline:none; transition:border-color .2s; }
+.login-field input:focus { border-color:var(--accent); background:#fff; }
+.btn-login { width:100%; background:var(--dark); color:#fff; border:none; border-radius:6px; font-family:'Barlow',sans-serif; font-size:.9rem; font-weight:700; letter-spacing:.08em; text-transform:uppercase; padding:13px; cursor:pointer; margin-top:8px; transition:background .2s; }
+.btn-login:hover { background:var(--accent); color:#000; }
+.login-error { background:rgba(231,76,60,.1); border:1px solid rgba(231,76,60,.3); color:var(--red); border-radius:6px; padding:9px 14px; font-size:.78rem; font-weight:600; margin-top:12px; text-align:center; display:none; }
+.login-footer { text-align:center; margin-top:16px; font-size:.65rem; color:rgba(255,255,255,.3); letter-spacing:.06em; }
+.logout-btn { background:transparent; border:1px solid rgba(255,255,255,.2); border-radius:6px; color:rgba(255,255,255,.5); font-family:'Barlow',sans-serif; font-size:.68rem; font-weight:700; letter-spacing:.08em; text-transform:uppercase; padding:5px 12px; cursor:pointer; transition:all .2s; }
+.logout-btn:hover { border-color:var(--red); color:var(--red); }
 </style>
 
 </head>
 <body>
 
-<header>
+<!-- ═══ LOGIN SCREEN ═══ -->
+<div id="login_overlay" class="login-overlay">
+  <div class="login-box">
+    <div class="login-logo">
+      <h1>⚙ Print MIS</h1>
+      <p>Production Management System</p>
+    </div>
+    <div class="login-field">
+      <label>Username</label>
+      <input type="text" id="login_user" placeholder="Enter username"
+        autocomplete="username" autocapitalize="none"
+        onkeydown="if(event.key==='Enter') document.getElementById('login_pass').focus()">
+    </div>
+    <div class="login-field">
+      <label>Password</label>
+      <input type="password" id="login_pass" placeholder="Enter password"
+        autocomplete="current-password"
+        onkeydown="if(event.key==='Enter') doLogin()">
+    </div>
+    <button class="btn-login" onclick="doLogin()">Sign In</button>
+    <div class="login-error" id="login_error">Incorrect username or password. Try again.</div>
+  </div>
+  <div class="login-footer">EPMP Print MIS · Authorized Users Only</div>
+</div>
   <div class="hdr-left">
     <h1>⚙ Print MIS</h1>
     <span id="clock"></span>
@@ -308,6 +346,7 @@ select:focus, input:focus { border-color:var(--accent); background:#fff; }
     <button class="ntab" onclick="showView('new',this)">＋ New Job</button>
     <button class="ntab" onclick="showView('dash',this)">📊 Dashboard</button>
     <button class="ntab" onclick="showView('archive',this)">🗂 Archive</button>
+    <button class="logout-btn" onclick="doLogout()" id="logout_btn" style="margin-left:12px;">⏻ Sign Out</button>
   </nav>
 </header>
 
@@ -600,7 +639,56 @@ select:focus, input:focus { border-color:var(--accent); background:#fff; }
 <div class="toast" id="toast"></div>
 
 <script>
-// ── QR SCANNER ────────────────────────────────────────────────────────────────
+// ── LOGIN ─────────────────────────────────────────────────────────────────────
+// Add or change usernames and passwords here
+const USERS = {
+  'admin':    'epmp2024',
+  'david':    'david123',
+  'lees':     'lee123',
+  'rosa':     'rosa123',
+  'gabriela': 'gaby123',
+  'kenny':    'kenny123'
+};
+
+function doLogin() {
+  const user = document.getElementById('login_user').value.trim().toLowerCase();
+  const pass = document.getElementById('login_pass').value;
+  const err  = document.getElementById('login_error');
+
+  if (USERS[user] && USERS[user] === pass) {
+    // Store session in sessionStorage (clears when browser/tab closes)
+    sessionStorage.setItem('mis_user', user);
+    document.getElementById('login_overlay').style.display = 'none';
+    err.style.display = 'none';
+    // Update header with logged-in user
+    document.querySelector('.hdr-left h1').textContent = '⚙ Print MIS';
+    toast('Welcome, ' + user.charAt(0).toUpperCase() + user.slice(1) + ' ✓');
+  } else {
+    err.style.display = 'block';
+    document.getElementById('login_pass').value = '';
+    document.getElementById('login_pass').focus();
+  }
+}
+
+function doLogout() {
+  if (confirm('Sign out of Print MIS?')) {
+    sessionStorage.removeItem('mis_user');
+    document.getElementById('login_user').value = '';
+    document.getElementById('login_pass').value = '';
+    document.getElementById('login_error').style.display = 'none';
+    document.getElementById('login_overlay').style.display = 'flex';
+  }
+}
+
+// Check if already logged in on page load
+function checkLogin() {
+  const user = sessionStorage.getItem('mis_user');
+  if (user) {
+    document.getElementById('login_overlay').style.display = 'none';
+  }
+}
+
+
 let cameraStream    = null;
 let scanAnimFrame   = null;
 let scanTargetField = null;
@@ -840,7 +928,7 @@ function closeScanner() {
 }
 
 // ── CONSTANTS ─────────────────────────────────────────────────────────────────
-const SHEET_URL = 'https://script.google.com/macros/s/AKfycbwKTjE3rQxsHW15kPDlT3-eP0kjdBZlqVoVX3tKhohk4CbOUpEwwZVAhrDNx-N0o0Gs/exec';
+const SHEET_URL = 'https://script.google.com/a/macros/epmptx.com/s/AKfycby78ZYJeLPCJy30wQtydFRBNKT4qoKZ0U-WbeXGdSblF7Li4SY5jZwLsr6FDdD4p-n4qQ/exec';
 
 // Returns current local time as datetime-local string (fixes timezone offset bug)
 function localNow() {
@@ -1846,6 +1934,7 @@ setInterval(() => { document.getElementById('clock').textContent = new Date().to
 document.getElementById('clock').textContent = new Date().toLocaleTimeString();
 setInterval(() => { if (!document.getElementById('view_dash').classList.contains('hidden')) renderDashboard(); }, 30000);
 setInterval(() => { if (!document.getElementById('view_active').classList.contains('hidden')) renderActiveJobs(); }, 60000);
+checkLogin();
 renderActiveJobs();
 </script>
 </body>
