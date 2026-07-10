@@ -340,6 +340,7 @@ select:focus, input:focus { border-color:var(--accent); background:#fff; }
   <div class="hdr-left">
     <h1>⚙ Print MIS</h1>
     <span id="clock"></span>
+    <span id="user_tag" style="font-size:.7rem;color:rgba(255,255,255,.5);font-weight:600;letter-spacing:.06em;text-transform:uppercase;"></span>
   </div>
   <nav class="tab-nav">
     <button class="ntab active" onclick="showView('active',this)">📋 Active Jobs</button>
@@ -373,11 +374,21 @@ select:focus, input:focus { border-color:var(--accent); background:#fff; }
     </div>
   </div>
 
+  <!-- Prepress -->
+  <div id="dept_prepress_section">
+    <div class="dept-header">
+      <div class="dept-dot" style="background:#9b59b6"></div>
+      <div class="dept-title">Prepress</div>
+      <div class="dept-count" id="dept_prepress_count"></div>
+    </div>
+    <div class="jobs-grid" id="dept_prepress_list"></div>
+  </div>
+
   <!-- Press -->
-  <div id="dept_press_section">
+  <div id="dept_press_section" style="margin-top:24px;">
     <div class="dept-header">
       <div class="dept-dot" style="background:var(--press)"></div>
-      <div class="dept-title">Printing Press</div>
+      <div class="dept-title">Press</div>
       <div class="dept-count" id="dept_press_count"></div>
     </div>
     <div class="jobs-grid" id="dept_press_list"></div>
@@ -393,14 +404,34 @@ select:focus, input:focus { border-color:var(--accent); background:#fff; }
     <div class="jobs-grid" id="dept_fold_list"></div>
   </div>
 
-  <!-- Binding -->
+  <!-- Bindery & Finishing -->
   <div id="dept_bind_section" style="margin-top:24px;">
     <div class="dept-header">
       <div class="dept-dot" style="background:var(--bind)"></div>
-      <div class="dept-title">Saddlestitch / Bindery</div>
+      <div class="dept-title">Bindery &amp; Finishing</div>
       <div class="dept-count" id="dept_bind_count"></div>
     </div>
     <div class="jobs-grid" id="dept_bind_list"></div>
+  </div>
+
+  <!-- Mailing -->
+  <div id="dept_mail_section" style="margin-top:24px;">
+    <div class="dept-header">
+      <div class="dept-dot" style="background:#3498db"></div>
+      <div class="dept-title">Mailing</div>
+      <div class="dept-count" id="dept_mail_count"></div>
+    </div>
+    <div class="jobs-grid" id="dept_mail_list"></div>
+  </div>
+
+  <!-- Shipping -->
+  <div id="dept_ship_section" style="margin-top:24px;">
+    <div class="dept-header">
+      <div class="dept-dot" style="background:var(--gray)"></div>
+      <div class="dept-title">Shipping</div>
+      <div class="dept-count" id="dept_ship_count"></div>
+    </div>
+    <div class="jobs-grid" id="dept_ship_list"></div>
   </div>
 
   <!-- Completed Today -->
@@ -426,8 +457,31 @@ select:focus, input:focus { border-color:var(--accent); background:#fff; }
           <label>Operator Name</label>
           <select id="f_operator">
             <option value="">— Select Operator —</option>
-            <option>DAVID</option><option>LEE S.</option><option>ROSA</option>
-            <option>GABRIELA</option><option>KENNY</option>
+            <optgroup label="── Management ──">
+              <option>Carlos</option>
+              <option>Ismael</option>
+              <option>Jorge</option>
+              <option>Frank</option>
+            </optgroup>
+            <optgroup label="── Prepress ──">
+              <option>Aaron</option>
+              <option>Nate</option>
+              <option>Emma</option>
+              <option>Humberto</option>
+            </optgroup>
+            <optgroup label="── Press ──">
+              <option>Victor</option>
+              <option>Tony</option>
+              <option>Pepe</option>
+            </optgroup>
+            <optgroup label="── Bindery ──">
+              <option>Becky</option>
+              <option>Hector</option>
+              <option>Ruben</option>
+              <option>David</option>
+              <option>Leo</option>
+              <option>Paul</option>
+            </optgroup>
           </select>
           <div class="row-2">
             <div>
@@ -445,15 +499,18 @@ select:focus, input:focus { border-color:var(--accent); background:#fff; }
               </div>
             </div>
           </div>
-          <label>Operation Type</label>
+          <label>Department</label>
           <select id="f_optype" onchange="onOpChange()">
-            <option value="">— Select —</option>
-            <option value="Printing">Printing</option>
+            <option value="">— Select Department —</option>
+            <option value="Prepress">Prepress</option>
+            <option value="Press">Press</option>
             <option value="Folding">Folding</option>
-            <option value="Binding">Binding</option>
+            <option value="Bindery &amp; Finishing">Bindery &amp; Finishing</option>
+            <option value="Mailing">Mailing</option>
+            <option value="Shipping">Shipping</option>
           </select>
-          <label>Machine</label>
-          <select id="f_machine"><option value="">— Select Operation First —</option></select>
+          <label>Operation</label>
+          <select id="f_machine"><option value="">— Select Department First —</option></select>
         </div>
       </div>
     </div>
@@ -470,9 +527,29 @@ select:focus, input:focus { border-color:var(--accent); background:#fff; }
               </div>
             </div>
             <div>
+              <label>Press Sheets</label>
+              <div class="scan-wrap">
+                <input type="number" id="f_press_sheets" placeholder="e.g. 2500" min="0">
+                <button class="btn-scan" onclick="openScanner('f_press_sheets','Press Sheets')" title="Scan QR Code"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></button>
+              </div>
+            </div>
+          </div>
+          <div class="row-2">
+            <div>
               <label>Pages</label>
               <div class="scan-wrap">
                 <input type="number" id="f_pages" placeholder="8" min="0">
+                <button class="btn-scan" onclick="openScanner('f_pages','Pages')" title="Scan QR Code"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></button>
+              </div>
+            </div>
+            <div>
+              <label>Forms</label>
+              <div class="scan-wrap">
+                <input type="number" id="f_forms" placeholder="e.g. 4" min="0">
+                <button class="btn-scan" onclick="openScanner('f_forms','Forms')" title="Scan QR Code"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></button>
+              </div>
+            </div>
+          </div>
                 <button class="btn-scan" onclick="openScanner('f_pages','Pages')" title="Scan QR Code"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></button>
               </div>
             </div>
@@ -543,12 +620,18 @@ select:focus, input:focus { border-color:var(--accent); background:#fff; }
     <button class="btn btn-secondary btn-sm" onclick="renderDashboard()">↻ Refresh</button>
   </div>
   <div class="dash-summary" id="dash_summary"></div>
-  <div class="dept-header"><div class="dept-dot" style="background:var(--press)"></div><div class="dept-title">Printing Press</div><div class="dept-count" id="cnt_press"></div></div>
+  <div class="dept-header"><div class="dept-dot" style="background:#9b59b6"></div><div class="dept-title">Prepress</div><div class="dept-count" id="cnt_prepress"></div></div>
+  <div class="machine-cards" id="cards_prepress"></div>
+  <div class="dept-header"><div class="dept-dot" style="background:var(--press)"></div><div class="dept-title">Press</div><div class="dept-count" id="cnt_press"></div></div>
   <div class="machine-cards" id="cards_press"></div>
   <div class="dept-header"><div class="dept-dot" style="background:var(--fold)"></div><div class="dept-title">Folding</div><div class="dept-count" id="cnt_fold"></div></div>
   <div class="machine-cards" id="cards_fold"></div>
-  <div class="dept-header"><div class="dept-dot" style="background:var(--bind)"></div><div class="dept-title">Saddlestitch / Binding</div><div class="dept-count" id="cnt_bind"></div></div>
+  <div class="dept-header"><div class="dept-dot" style="background:var(--bind)"></div><div class="dept-title">Bindery &amp; Finishing</div><div class="dept-count" id="cnt_bind"></div></div>
   <div class="machine-cards" id="cards_bind"></div>
+  <div class="dept-header"><div class="dept-dot" style="background:#3498db"></div><div class="dept-title">Mailing</div><div class="dept-count" id="cnt_mail"></div></div>
+  <div class="machine-cards" id="cards_mail"></div>
+  <div class="dept-header"><div class="dept-dot" style="background:var(--gray)"></div><div class="dept-title">Shipping</div><div class="dept-count" id="cnt_ship"></div></div>
+  <div class="machine-cards" id="cards_ship"></div>
   <div class="charts-grid">
     <div class="chart-wrap"><div class="panel-title">Units / hr — Today</div><canvas id="c_uph"></canvas></div>
     <div class="chart-wrap"><div class="panel-title">Total Units — Today</div><canvas id="c_units"></canvas></div>
@@ -558,14 +641,17 @@ select:focus, input:focus { border-color:var(--accent); background:#fff; }
 <!-- ═══ ARCHIVE ═══ -->
 <div id="view_archive" class="content hidden">
   <div class="view-header">
-    <h2 class="view-title">Job Archive</h2>
+    <h2 class="view-title">Job Archive <span style="font-size:.65rem;color:var(--muted);font-weight:600;">— Last 3 Days</span></h2>
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
       <input type="text" id="arch_search" placeholder="Search job #, operator..." style="width:200px;font-size:.82rem;padding:7px 10px;" oninput="renderArchive()">
-      <select id="arch_op" style="width:160px;font-size:.82rem;padding:7px 10px;" onchange="renderArchive()">
-        <option value="">All Operations</option>
-        <option value="Printing">Printing</option>
+      <select id="arch_op" style="width:180px;font-size:.82rem;padding:7px 10px;" onchange="renderArchive()">
+        <option value="">All Departments</option>
+        <option value="Prepress">Prepress</option>
+        <option value="Press">Press</option>
         <option value="Folding">Folding</option>
-        <option value="Binding">Binding</option>
+        <option value="Bindery &amp; Finishing">Bindery &amp; Finishing</option>
+        <option value="Mailing">Mailing</option>
+        <option value="Shipping">Shipping</option>
       </select>
       <input type="date" id="arch_from" style="width:145px;font-size:.82rem;padding:7px 10px;" oninput="renderArchive()">
       <span style="font-size:.75rem;color:var(--muted);">to</span>
@@ -579,31 +665,53 @@ select:focus, input:focus { border-color:var(--accent); background:#fff; }
   <div class="arch-summary" id="arch_summary"></div>
 
   <!-- Department sections -->
-  <div id="arch_press_section">
+  <div id="arch_prepress_section">
     <div class="dept-header" style="margin-top:8px;">
+      <div class="dept-dot" style="background:#9b59b6"></div>
+      <div class="dept-title">Prepress</div>
+      <div class="dept-count" id="arch_prepress_count"></div>
+    </div>
+    <div class="arch-table-wrap" id="arch_prepress_table"></div>
+  </div>
+  <div id="arch_press_section">
+    <div class="dept-header" style="margin-top:16px;">
       <div class="dept-dot" style="background:var(--press)"></div>
-      <div class="dept-title">Printing Press</div>
+      <div class="dept-title">Press</div>
       <div class="dept-count" id="arch_press_count"></div>
     </div>
     <div class="arch-table-wrap" id="arch_press_table"></div>
   </div>
-
   <div id="arch_fold_section">
-    <div class="dept-header" style="margin-top:24px;">
+    <div class="dept-header" style="margin-top:16px;">
       <div class="dept-dot" style="background:var(--fold)"></div>
       <div class="dept-title">Folding</div>
       <div class="dept-count" id="arch_fold_count"></div>
     </div>
     <div class="arch-table-wrap" id="arch_fold_table"></div>
   </div>
-
   <div id="arch_bind_section">
-    <div class="dept-header" style="margin-top:24px;">
+    <div class="dept-header" style="margin-top:16px;">
       <div class="dept-dot" style="background:var(--bind)"></div>
-      <div class="dept-title">Saddlestitch / Binding</div>
+      <div class="dept-title">Bindery &amp; Finishing</div>
       <div class="dept-count" id="arch_bind_count"></div>
     </div>
     <div class="arch-table-wrap" id="arch_bind_table"></div>
+  </div>
+  <div id="arch_mail_section">
+    <div class="dept-header" style="margin-top:16px;">
+      <div class="dept-dot" style="background:#3498db"></div>
+      <div class="dept-title">Mailing</div>
+      <div class="dept-count" id="arch_mail_count"></div>
+    </div>
+    <div class="arch-table-wrap" id="arch_mail_table"></div>
+  </div>
+  <div id="arch_ship_section">
+    <div class="dept-header" style="margin-top:16px;">
+      <div class="dept-dot" style="background:var(--gray)"></div>
+      <div class="dept-title">Shipping</div>
+      <div class="dept-count" id="arch_ship_count"></div>
+    </div>
+    <div class="arch-table-wrap" id="arch_ship_table"></div>
   </div>
 </div>
 
@@ -639,30 +747,69 @@ select:focus, input:focus { border-color:var(--accent); background:#fff; }
 <div class="toast" id="toast"></div>
 
 <script>
-// ── LOGIN ─────────────────────────────────────────────────────────────────────
-// Add or change usernames and passwords here
+// ── LOGIN & ACCESS CONTROL ────────────────────────────────────────────────────
+// USERS: { username: { password, role, name, dept[] } }
+// dept: 'all' = full access | array of dept names restricts views
+// roles: 'admin' | 'manager' | 'operator'
+
 const USERS = {
-  'admin':    'epmp2024',
-  'david':    'david123',
-  'lees':     'lee123',
-  'rosa':     'rosa123',
-  'gabriela': 'gaby123',
-  'kenny':    'kenny123'
+  // ── ADMIN ──────────────────────────────────────────────────
+  'admin':    { password:'epmp2026', role:'admin',    name:'Admin',    dept:'all' },
+
+  // ── MANAGERS (full access) ─────────────────────────────────
+  'manager':  { password:'mgr2026',  role:'manager',  name:'Manager',  dept:'all' },
+  'carlos':   { password:'mgr2026',  role:'manager',  name:'Carlos',   dept:'all' },
+  'ismael':   { password:'mgr2026',  role:'manager',  name:'Ismael',   dept:'all' },
+  'jorge':    { password:'mgr2026',  role:'manager',  name:'Jorge',    dept:'all' },
+  'frank':    { password:'mgr2026',  role:'manager',  name:'Frank',    dept:'all' },
+
+  // ── PREPRESS OPERATORS ─────────────────────────────────────
+  'aaron':    { password:'pp2026',   role:'operator', name:'Aaron',    dept:['prepress'] },
+  'nate':     { password:'pp2026',   role:'operator', name:'Nate',     dept:['prepress'] },
+  'emma':     { password:'pp2026',   role:'operator', name:'Emma',     dept:['prepress'] },
+  'humberto': { password:'pp2026',   role:'operator', name:'Humberto', dept:['prepress'] },
+
+  // ── PRESS OPERATORS ───────────────────────────────────────
+  'victor':   { password:'ps2026',   role:'operator', name:'Victor',   dept:['press'] },
+  'tony':     { password:'ps2026',   role:'operator', name:'Tony',     dept:['press'] },
+  'pepe':     { password:'ps2026',   role:'operator', name:'Pepe',     dept:['press'] },
+
+  // ── BINDERY OPERATORS ─────────────────────────────────────
+  'becky':    { password:'bn2026',   role:'operator', name:'Becky',    dept:['bindery'] },
+  'hector':   { password:'bn2026',   role:'operator', name:'Hector',   dept:['bindery'] },
+  'ruben':    { password:'bn2026',   role:'operator', name:'Ruben',    dept:['bindery'] },
+  'david':    { password:'bn2026',   role:'operator', name:'David',    dept:['bindery'] },
+  'leo':      { password:'bn2026',   role:'operator', name:'Leo',      dept:['bindery'] },
+  'paul':     { password:'bn2026',   role:'operator', name:'Paul',     dept:['bindery'] },
 };
 
-function doLogin() {
-  const user = document.getElementById('login_user').value.trim().toLowerCase();
-  const pass = document.getElementById('login_pass').value;
-  const err  = document.getElementById('login_error');
+// Dept rules — which opType maps to which dept key
+const DEPT_MAP = {
+  press:    'Printing',
+  folding:  'Folding',
+  bindery:  'Binding',
+  prepress: 'Prepress'
+};
 
-  if (USERS[user] && USERS[user] === pass) {
-    // Store session in sessionStorage (clears when browser/tab closes)
-    sessionStorage.setItem('mis_user', user);
+let currentUser = null;
+
+function doLogin() {
+  const username = document.getElementById('login_user').value.trim().toLowerCase();
+  const password = document.getElementById('login_pass').value;
+  const err      = document.getElementById('login_error');
+  const user     = USERS[username];
+
+  if (user && user.password === password) {
+    currentUser = { username, ...user };
+    sessionStorage.setItem('mis_user',    username);
+    sessionStorage.setItem('mis_role',    user.role);
+    sessionStorage.setItem('mis_dept',    JSON.stringify(user.dept));
+    sessionStorage.setItem('mis_name',    user.name);
+
     document.getElementById('login_overlay').style.display = 'none';
     err.style.display = 'none';
-    // Update header with logged-in user
-    document.querySelector('.hdr-left h1').textContent = '⚙ Print MIS';
-    toast('Welcome, ' + user.charAt(0).toUpperCase() + user.slice(1) + ' ✓');
+    applyAccessControl();
+    toast('Welcome, ' + user.name + ' ✓');
   } else {
     err.style.display = 'block';
     document.getElementById('login_pass').value = '';
@@ -670,9 +817,74 @@ function doLogin() {
   }
 }
 
+function applyAccessControl() {
+  if (!currentUser) return;
+  const dept = currentUser.dept;
+  const role = currentUser.role;
+
+  // Update header to show logged-in user name and role
+  const userTag = document.getElementById('user_tag');
+  if (userTag) {
+    userTag.textContent = currentUser.name + ' (' + role + ')';
+  }
+
+  // Admins, managers and prepress see everything
+  if (dept === 'all' || role === 'admin' || role === 'manager') return;
+  if (dept.includes('prepress')) return; // prepress sees all depts
+
+  // Operators — filter Active Jobs to their department only
+  // Hide department sections they don't have access to
+  const deptSections = {
+    prepress: 'dept_prepress_section',
+    press:    'dept_press_section',
+    folding:  'dept_fold_section',
+    bindery:  'dept_bind_section',
+    mailing:  'dept_mail_section',
+    shipping: 'dept_ship_section'
+  };
+
+  Object.entries(deptSections).forEach(([key, id]) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (!dept.includes(key)) {
+      el.style.display = 'none'; // hide sections they don't belong to
+    }
+  });
+
+  // Restrict New Job form — pre-select their operation type
+  if (dept.length === 1) {
+    const opMap = { press:'Printing', folding:'Folding', bindery:'Binding' };
+    const opType = opMap[dept[0]];
+    if (opType) {
+      setTimeout(() => {
+        const sel = document.getElementById('f_optype');
+        if (sel) { sel.value = opType; onOpChange(); }
+      }, 100);
+    }
+  }
+
+  // Hide dashboard and archive from pure operators
+  if (role === 'operator') {
+    document.querySelectorAll('.ntab').forEach(btn => {
+      if (btn.textContent.includes('Dashboard') || btn.textContent.includes('Archive')) {
+        btn.style.display = 'none';
+      }
+    });
+  }
+}
+
 function doLogout() {
   if (confirm('Sign out of Print MIS?')) {
-    sessionStorage.removeItem('mis_user');
+    sessionStorage.clear();
+    currentUser = null;
+
+    // Reset any hidden elements
+    document.querySelectorAll('.ntab').forEach(btn => btn.style.display = '');
+    ['dept_press_section','dept_fold_section','dept_bind_section'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.style.display = '';
+    });
+
     document.getElementById('login_user').value = '';
     document.getElementById('login_pass').value = '';
     document.getElementById('login_error').style.display = 'none';
@@ -680,11 +892,12 @@ function doLogout() {
   }
 }
 
-// Check if already logged in on page load
 function checkLogin() {
-  const user = sessionStorage.getItem('mis_user');
-  if (user) {
+  const username = sessionStorage.getItem('mis_user');
+  if (username && USERS[username]) {
+    currentUser = { username, ...USERS[username] };
     document.getElementById('login_overlay').style.display = 'none';
+    applyAccessControl();
   }
 }
 
@@ -937,9 +1150,12 @@ function localNow() {
 }
 
 const MACHINES = {
-  Printing: ['Heidelberg 1','Heidelberg 2','Heidelberg 3','Shinohara 1'],
-  Folding:  ['F1-MBO-B26-1','F2-MBO-B26-2','F3-MBO-B30','F4-STAHL-STA1','F5-STAHL-STA2','F6-STAHL-B14','F7-BAUM-2020','F8-STAHL-B14'],
-  Binding:  ['Saddle Stitcher 1','Saddle Stitcher 2','Saddle Stitcher 3']
+  'Prepress':            ['Preparation & Preflight','Proofing & Approval','Imposition & Platemaking','Direct Mail Prep','Database Management','Inkjet Addressing'],
+  'Press':               ['Heidelberg Press 1','Heidelberg Press 2','Heidelberg Press 3','Shinohara Press 4'],
+  'Folding':             ['F1-MBO-B26-1','F2-MBO-B26-2','F3-MBO-B30','F4-STAHL-STA1','F5-STAHL-STA2','F6-STAHL-B14','F7-BAUM-2020','F8-STAHL-B14'],
+  'Bindery & Finishing': ['Outsourcing','Cutting','Die-Cutting','Scoring & Creasing','Collating','Binding','Kitting','Shrink-Wrapping'],
+  'Mailing':             ['Inkjet Addressing','Inserting','Sealing & Tabbing'],
+  'Shipping':            ['Local Delivery','Freight','UPS','FedEx','USPS','Customer Pickup']
 };
 
 let chartUph = null, chartUnits = null;
@@ -967,12 +1183,19 @@ function showView(v, el) {
 
 // ── FORM ──────────────────────────────────────────────────────────────────────
 function onOpChange() {
-  const op = document.getElementById('f_optype').value;
+  const op  = document.getElementById('f_optype').value;
   const sel = document.getElementById('f_machine');
-  sel.innerHTML = '<option value="">— Select Machine —</option>';
-  if (op && MACHINES[op]) MACHINES[op].forEach(m => { const o=document.createElement('option'); o.value=m; o.textContent=m; sel.appendChild(o); });
-  document.getElementById('field_colors').classList.toggle('hidden', op!=='Printing');
-  document.getElementById('field_fold').classList.toggle('hidden', op!=='Folding');
+  sel.innerHTML = '<option value="">— Select Operation —</option>';
+  if (op && MACHINES[op]) {
+    MACHINES[op].forEach(m => {
+      const o = document.createElement('option');
+      o.value = m; o.textContent = m; sel.appendChild(o);
+    });
+  }
+  // Show Colors only for Press
+  document.getElementById('field_colors').classList.toggle('hidden', op !== 'Press');
+  // Show Fold Type only for Folding
+  document.getElementById('field_fold').classList.toggle('hidden', op !== 'Folding');
 }
 
 function createJob() {
@@ -981,7 +1204,7 @@ function createJob() {
   const poNumber  = document.getElementById('f_po').value.trim();
   const opType    = document.getElementById('f_optype').value;
   const machine   = document.getElementById('f_machine').value;
-  if (!operator||!jobNumber||!opType||!machine) { alert('Please fill in Operator, Job Number, Operation Type and Machine.'); return; }
+  if (!operator||!jobNumber||!opType||!machine) { alert('Please fill in Operator, Job Number, Department and Operation.'); return; }
 
   const mrStartInput = document.getElementById('f_mr_start_time').value;
   const now = mrStartInput || localNow();
@@ -990,9 +1213,11 @@ function createJob() {
     date: now.slice(0,10),
     status: 'makeready',
     operator, jobNumber, poNumber, opType, machine,
-    qty:       parseInt(document.getElementById('f_qty').value)||0,
-    pages:     parseInt(document.getElementById('f_pages').value)||0,
-    sigs:      parseInt(document.getElementById('f_sigs').value)||0,
+    qty:         parseInt(document.getElementById('f_qty').value)||0,
+    pressSheets: parseInt(document.getElementById('f_press_sheets').value)||0,
+    pages:       parseInt(document.getElementById('f_pages').value)||0,
+    forms:       parseInt(document.getElementById('f_forms').value)||0,
+    sigs:        parseInt(document.getElementById('f_sigs').value)||0,
     paperSize: document.getElementById('f_papersize').value.trim(),
     paperType: document.getElementById('f_papertype').value,
     colors:    document.getElementById('f_colors').value,
@@ -1010,7 +1235,7 @@ function createJob() {
 }
 
 function resetNewForm() {
-  ['f_operator','f_job','f_po','f_optype','f_machine','f_qty','f_pages',
+  ['f_operator','f_job','f_po','f_optype','f_machine','f_qty','f_press_sheets','f_pages','f_forms',
    'f_sigs','f_papersize','f_papertype','f_colors','f_fold','f_mr_start_time'].forEach(id => {
     const el = document.getElementById(id); if (el) el.value='';
   });
@@ -1027,9 +1252,12 @@ function renderActiveJobs() {
 
   // Group active jobs by department
   const depts = [
-    { key: 'press', label: 'Printing Press',        opType: 'Printing', machines: MACHINES.Printing },
-    { key: 'fold',  label: 'Folding',               opType: 'Folding',  machines: MACHINES.Folding  },
-    { key: 'bind',  label: 'Saddlestitch / Bindery', opType: 'Binding',  machines: MACHINES.Binding  }
+    { key:'prepress', label:'Prepress',            opType:'Prepress',            machines: MACHINES['Prepress'] },
+    { key:'press',    label:'Press',               opType:'Press',               machines: MACHINES['Press'] },
+    { key:'fold',     label:'Folding',             opType:'Folding',             machines: MACHINES['Folding'] },
+    { key:'bind',     label:'Bindery & Finishing', opType:'Bindery & Finishing', machines: MACHINES['Bindery & Finishing'] },
+    { key:'mail',     label:'Mailing',             opType:'Mailing',             machines: MACHINES['Mailing'] },
+    { key:'ship',     label:'Shipping',            opType:'Shipping',            machines: MACHINES['Shipping'] }
   ];
 
   depts.forEach(dept => {
@@ -1520,9 +1748,12 @@ function renderDashboard() {
     <div class="sc"><div class="sc-val">${totalUnits.toLocaleString()}</div><div class="sc-lbl">Units Today</div></div>
     <div class="sc"><div class="sc-val">${totalDT}</div><div class="sc-lbl">Downtime hrs</div></div>`;
 
-  renderDeptCards('Printing','press',all,today);
-  renderDeptCards('Folding','fold',all,today);
-  renderDeptCards('Binding','bind',all,today);
+  renderDeptCards('Prepress',           'prepress', all, today);
+  renderDeptCards('Press',              'press',    all, today);
+  renderDeptCards('Folding',            'fold',     all, today);
+  renderDeptCards('Bindery & Finishing','bind',     all, today);
+  renderDeptCards('Mailing',            'mail',     all, today);
+  renderDeptCards('Shipping',           'ship',     all, today);
   renderCharts(todayAll);
   document.getElementById('refresh_lbl').textContent = 'Last updated: ' + new Date().toLocaleTimeString();
 }
@@ -1637,25 +1868,28 @@ function renderDeptCards(opType, cls, all, today) {
 }
 
 function renderCharts(td) {
-  const all    = [...MACHINES.Printing,...MACHINES.Folding,...MACHINES.Binding];
-  const labels = all.map(m => m.length > 11 ? m.slice(0,11)+'…' : m);
-  const clrs   = [
-    ...MACHINES.Printing.map(()=>'#e74c3c'),
-    ...MACHINES.Folding.map(()=>'#f0a500'),
-    ...MACHINES.Binding.map(()=>'#00c2a8')
-  ];
-  // Only completed jobs with valid UPH for charts
-  const complete = td.filter(d => d.status === 'complete' && d.uph > 0);
-  const uph   = all.map(m => {
-    const r = complete.filter(d => d.machine === m);
-    return r.length ? Math.round(r.reduce((s,d) => s+d.uph, 0) / r.length) : 0;
+  const deptColors = {
+    'Prepress':            '#9b59b6',
+    'Press':               '#e74c3c',
+    'Folding':             '#f0a500',
+    'Bindery & Finishing': '#00c2a8',
+    'Mailing':             '#3498db',
+    'Shipping':            '#95a5a6'
+  };
+  const allItems  = Object.keys(MACHINES).flatMap(d => MACHINES[d].map(m => ({ dept:d, machine:m })));
+  const labels    = allItems.map(x => x.machine.length > 11 ? x.machine.slice(0,11)+'…' : x.machine);
+  const clrs      = allItems.map(x => deptColors[x.dept] || '#888');
+  const complete  = td.filter(d => d.status === 'complete' && d.uph > 0);
+  const uph       = allItems.map(x => {
+    const r = complete.filter(d => d.machine === x.machine);
+    return r.length ? Math.round(r.reduce((s,d)=>s+d.uph,0)/r.length) : 0;
   });
-  const units = all.map(m => td.filter(d => d.machine === m).reduce((s,d) => s+d.totalUnits, 0));
-  const opts   = { responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{ x:{ticks:{color:'#888',font:{size:9},maxRotation:45},grid:{color:'#eee'}}, y:{ticks:{color:'#888',font:{size:10}},grid:{color:'#eee'},beginAtZero:true} } };
-  const mk = (canvasId, data, existing) => {
-    const ctx = document.getElementById(canvasId).getContext('2d');
+  const units = allItems.map(x => td.filter(d => d.machine === x.machine).reduce((s,d)=>s+d.totalUnits,0));
+  const opts  = { responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{ x:{ticks:{color:'#888',font:{size:9},maxRotation:45},grid:{color:'#eee'}}, y:{ticks:{color:'#888',font:{size:10}},grid:{color:'#eee'},beginAtZero:true} } };
+  const mk = (id, data, existing) => {
+    const ctx = document.getElementById(id).getContext('2d');
     if (existing) existing.destroy();
-    return new Chart(ctx,{type:'bar',data:{labels,datasets:[{data,backgroundColor:clrs.map(c=>c+'aa'),borderColor:clrs,borderWidth:1,borderRadius:4}]},options:{...opts}});
+    return new Chart(ctx,{type:'bar',data:{labels,datasets:[{data,backgroundColor:clrs.map(c=>c+'bb'),borderColor:clrs,borderWidth:1,borderRadius:4}]},options:{...opts}});
   };
   chartUph   = mk('c_uph',   uph,   chartUph);
   chartUnits = mk('c_units', units, chartUnits);
@@ -1750,6 +1984,24 @@ function buildProgressBar(totalUnits, qty) {
 
 let archSort = { col: 'date', dir: 'desc' };
 
+// ── 3-DAY DATA RETENTION ──────────────────────────────────────────────────────
+function purgeOldJobs() {
+  const all      = getData();
+  const cutoff   = new Date();
+  cutoff.setDate(cutoff.getDate() - 3);
+  const cutoffStr = new Date(cutoff.getTime() - cutoff.getTimezoneOffset() * 60000)
+    .toISOString().slice(0, 10);
+
+  const kept = all.filter(j => {
+    if (j.status !== 'complete') return true; // always keep active jobs
+    return j.date >= cutoffStr;               // keep completed jobs within 3 days
+  });
+
+  if (kept.length < all.length) {
+    setData(kept);
+  }
+}
+
 function clearArchiveFilters() {
   document.getElementById('arch_search').value = '';
   document.getElementById('arch_op').value = '';
@@ -1759,13 +2011,21 @@ function clearArchiveFilters() {
 }
 
 function renderArchive() {
+  purgeOldJobs(); // clean up old jobs first
+
   const all      = getData();
   const complete = all.filter(d => d.status === 'complete');
 
-  // Filters
-  const search = (document.getElementById('arch_search').value || '').toLowerCase();
+  // 3-day window
+  const cutoff   = new Date();
+  cutoff.setDate(cutoff.getDate() - 3);
+  const cutoffStr = new Date(cutoff.getTime() - cutoff.getTimezoneOffset() * 60000)
+    .toISOString().slice(0, 10);
+
+  // Apply 3-day filter plus any user filters
+  const search   = (document.getElementById('arch_search').value || '').toLowerCase();
   const opFilter = document.getElementById('arch_op').value;
-  const fromDate = document.getElementById('arch_from').value;
+  const fromDate = document.getElementById('arch_from').value || cutoffStr;
   const toDate   = document.getElementById('arch_to').value;
 
   const filtered = complete.filter(d => {
@@ -1799,9 +2059,12 @@ function renderArchive() {
     <div class="sc"><div class="sc-val">${totalDT}</div><div class="sc-lbl">Total DT hrs</div></div>`;
 
   // Render each department
-  renderArchiveSection('Printing', 'press', sorted.filter(d => d.opType === 'Printing'));
-  renderArchiveSection('Folding',  'fold',  sorted.filter(d => d.opType === 'Folding'));
-  renderArchiveSection('Binding',  'bind',  sorted.filter(d => d.opType === 'Binding'));
+  renderArchiveSection('Prepress',           'prepress', sorted.filter(d => d.opType === 'Prepress'));
+  renderArchiveSection('Press',              'press',    sorted.filter(d => d.opType === 'Press'));
+  renderArchiveSection('Folding',            'fold',     sorted.filter(d => d.opType === 'Folding'));
+  renderArchiveSection('Bindery & Finishing','bind',     sorted.filter(d => d.opType === 'Bindery & Finishing'));
+  renderArchiveSection('Mailing',            'mail',     sorted.filter(d => d.opType === 'Mailing'));
+  renderArchiveSection('Shipping',           'ship',     sorted.filter(d => d.opType === 'Shipping'));
 }
 
 function archSortBy(col) {
@@ -1934,6 +2197,8 @@ setInterval(() => { document.getElementById('clock').textContent = new Date().to
 document.getElementById('clock').textContent = new Date().toLocaleTimeString();
 setInterval(() => { if (!document.getElementById('view_dash').classList.contains('hidden')) renderDashboard(); }, 30000);
 setInterval(() => { if (!document.getElementById('view_active').classList.contains('hidden')) renderActiveJobs(); }, 60000);
+setInterval(purgeOldJobs, 60 * 60 * 1000); // purge hourly
+purgeOldJobs(); // purge on load
 checkLogin();
 renderActiveJobs();
 </script>
