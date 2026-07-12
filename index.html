@@ -26,9 +26,9 @@ header { background:var(--dark); padding:0 28px; display:flex; align-items:cente
 header h1 { font-size:1.1rem; font-weight:900; letter-spacing:.1em; text-transform:uppercase; color:var(--accent); }
 #clock { font-family:'Share Tech Mono',monospace; font-size:.75rem; color:rgba(255,255,255,.4); }
 .tab-nav { display:flex; gap:5px; }
-.ntab { background:transparent; border:1px solid rgba(255,255,255,.2); border-radius:6px; color:rgba(255,255,255,.55); font-family:'Barlow',sans-serif; font-size:.73rem; font-weight:700; letter-spacing:.08em; text-transform:uppercase; padding:7px 16px; cursor:pointer; transition:all .2s; }
+.ntab { background:#2980b9; border:1px solid #2471a3; border-radius:6px; color:#fff; font-family:'Barlow',sans-serif; font-size:.73rem; font-weight:700; letter-spacing:.08em; text-transform:uppercase; padding:7px 16px; cursor:pointer; transition:all .2s; }
 .ntab.active { background:var(--accent); border-color:var(--accent); color:#000; }
-.ntab:hover:not(.active) { color:#fff; border-color:rgba(255,255,255,.5); }
+.ntab:hover:not(.active) { background:#3498db; border-color:#3498db; color:#fff; }
 
 /* LAYOUT */
 .content { padding:24px; max-width:1300px; margin:0 auto; }
@@ -347,6 +347,7 @@ select:focus, input:focus { border-color:var(--accent); background:#fff; }
     <button class="ntab" onclick="showView('new',this)">＋ New Job</button>
     <button class="ntab" onclick="showView('dash',this)">📊 Dashboard</button>
     <button class="ntab" onclick="showView('archive',this)">🗂 Archive</button>
+    <button class="ntab" onclick="showView('report',this)">📄 Job Report</button>
     <button class="logout-btn" onclick="doLogout()" id="logout_btn" style="margin-left:12px;">⏻ Sign Out</button>
   </nav>
 </header>
@@ -374,8 +375,18 @@ select:focus, input:focus { border-color:var(--accent); background:#fff; }
     </div>
   </div>
 
+  <!-- Scheduling -->
+  <div id="dept_sched_section">
+    <div class="dept-header">
+      <div class="dept-dot" style="background:#2ecc71"></div>
+      <div class="dept-title">Scheduling</div>
+      <div class="dept-count" id="dept_sched_count"></div>
+    </div>
+    <div class="jobs-grid" id="dept_sched_list"></div>
+  </div>
+
   <!-- Prepress -->
-  <div id="dept_prepress_section">
+  <div id="dept_prepress_section" style="margin-top:24px;">
     <div class="dept-header">
       <div class="dept-dot" style="background:#9b59b6"></div>
       <div class="dept-title">Prepress</div>
@@ -404,14 +415,24 @@ select:focus, input:focus { border-color:var(--accent); background:#fff; }
     <div class="jobs-grid" id="dept_fold_list"></div>
   </div>
 
-  <!-- Bindery & Finishing -->
+  <!-- Bindery -->
   <div id="dept_bind_section" style="margin-top:24px;">
     <div class="dept-header">
       <div class="dept-dot" style="background:var(--bind)"></div>
-      <div class="dept-title">Bindery &amp; Finishing</div>
+      <div class="dept-title">Bindery</div>
       <div class="dept-count" id="dept_bind_count"></div>
     </div>
     <div class="jobs-grid" id="dept_bind_list"></div>
+  </div>
+
+  <!-- Finishing -->
+  <div id="dept_finish_section" style="margin-top:24px;">
+    <div class="dept-header">
+      <div class="dept-dot" style="background:#1abc9c"></div>
+      <div class="dept-title">Finishing</div>
+      <div class="dept-count" id="dept_finish_count"></div>
+    </div>
+    <div class="jobs-grid" id="dept_finish_list"></div>
   </div>
 
   <!-- Mailing -->
@@ -424,11 +445,21 @@ select:focus, input:focus { border-color:var(--accent); background:#fff; }
     <div class="jobs-grid" id="dept_mail_list"></div>
   </div>
 
-  <!-- Shipping -->
+  <!-- Fulfillment -->
+  <div id="dept_fulfill_section" style="margin-top:24px;">
+    <div class="dept-header">
+      <div class="dept-dot" style="background:#e67e22"></div>
+      <div class="dept-title">Fulfillment</div>
+      <div class="dept-count" id="dept_fulfill_count"></div>
+    </div>
+    <div class="jobs-grid" id="dept_fulfill_list"></div>
+  </div>
+
+  <!-- Shipping/Inventory -->
   <div id="dept_ship_section" style="margin-top:24px;">
     <div class="dept-header">
       <div class="dept-dot" style="background:var(--gray)"></div>
-      <div class="dept-title">Shipping</div>
+      <div class="dept-title">Shipping/Inventory</div>
       <div class="dept-count" id="dept_ship_count"></div>
     </div>
     <div class="jobs-grid" id="dept_ship_list"></div>
@@ -487,30 +518,53 @@ select:focus, input:focus { border-color:var(--accent); background:#fff; }
             <div>
               <label>Job Number</label>
               <div class="scan-wrap">
-                <input type="text" id="f_job" placeholder="e.g. JOB-10042">
+                <input type="text" id="f_job" placeholder="e.g. 26-1448"
+                  oninput="scheduleJobLookup(this.value)">
                 <button class="btn-scan" onclick="openScanner('f_job','Job Number')" title="Scan QR Code"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></button>
               </div>
+              <div id="job_lookup_status" style="font-size:.68rem;color:var(--muted);margin-top:4px;min-height:14px;"></div>
             </div>
             <div>
               <label>PO Number</label>
-              <div class="scan-wrap">
-                <input type="text" id="f_po" placeholder="e.g. PO-5521">
-                <button class="btn-scan" onclick="openScanner('f_po','PO Number')" title="Scan QR Code"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></button>
-              </div>
+              <input type="text" id="f_po" placeholder="e.g. PO-5521">
             </div>
           </div>
           <label>Department</label>
           <select id="f_optype" onchange="onOpChange()">
             <option value="">— Select Department —</option>
+            <option value="Scheduling">Scheduling</option>
             <option value="Prepress">Prepress</option>
             <option value="Press">Press</option>
             <option value="Folding">Folding</option>
-            <option value="Bindery &amp; Finishing">Bindery &amp; Finishing</option>
+            <option value="Bindery">Bindery</option>
+            <option value="Finishing">Finishing</option>
             <option value="Mailing">Mailing</option>
-            <option value="Shipping">Shipping</option>
+            <option value="Fulfillment">Fulfillment</option>
+            <option value="Shipping/Inventory">Shipping/Inventory</option>
           </select>
           <label>Operation</label>
           <select id="f_machine"><option value="">— Select Department First —</option></select>
+
+          <!-- Fulfillment: open text -->
+          <div id="field_fulfillment_notes" class="hidden">
+            <label>Fulfillment Notes</label>
+            <textarea id="f_fulfillment_notes" rows="4" placeholder="Describe fulfillment activity..." style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-family:'Barlow',sans-serif;font-size:.85rem;resize:vertical;"></textarea>
+          </div>
+
+          <!-- Shipping/Inventory: function selector + notes -->
+          <div id="field_shipping_func" class="hidden">
+            <label>Shipping Function</label>
+            <div style="display:flex;gap:16px;margin-bottom:10px;">
+              <label style="display:flex;align-items:center;gap:6px;font-weight:600;cursor:pointer;">
+                <input type="radio" name="ship_func" value="Out for Delivery" id="ship_delivery"> Out for Delivery
+              </label>
+              <label style="display:flex;align-items:center;gap:6px;font-weight:600;cursor:pointer;">
+                <input type="radio" name="ship_func" value="Hold for Inventory" id="ship_inventory"> Hold for Inventory
+              </label>
+            </div>
+            <label>Shipping Notes</label>
+            <textarea id="f_shipping_notes" rows="3" placeholder="Carrier, tracking, location notes..." style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-family:'Barlow',sans-serif;font-size:.85rem;resize:vertical;"></textarea>
+          </div>
         </div>
       </div>
     </div>
@@ -521,53 +575,31 @@ select:focus, input:focus { border-color:var(--accent); background:#fff; }
           <div class="row-2">
             <div>
               <label>Quantity</label>
-              <div class="scan-wrap">
-                <input type="number" id="f_qty" placeholder="5000" min="0">
-                <button class="btn-scan" onclick="openScanner('f_qty','Quantity')" title="Scan QR Code"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></button>
-              </div>
+              <input type="number" id="f_qty" placeholder="5000" min="0">
             </div>
             <div>
               <label>Press Sheets</label>
-              <div class="scan-wrap">
-                <input type="number" id="f_press_sheets" placeholder="e.g. 2500" min="0">
-                <button class="btn-scan" onclick="openScanner('f_press_sheets','Press Sheets')" title="Scan QR Code"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></button>
-              </div>
+              <input type="number" id="f_press_sheets" placeholder="e.g. 2500" min="0">
             </div>
           </div>
           <div class="row-2">
             <div>
               <label>Pages</label>
-              <div class="scan-wrap">
-                <input type="number" id="f_pages" placeholder="8" min="0">
-                <button class="btn-scan" onclick="openScanner('f_pages','Pages')" title="Scan QR Code"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></button>
-              </div>
+              <input type="number" id="f_pages" placeholder="8" min="0">
             </div>
             <div>
               <label>Forms</label>
-              <div class="scan-wrap">
-                <input type="number" id="f_forms" placeholder="e.g. 4" min="0">
-                <button class="btn-scan" onclick="openScanner('f_forms','Forms')" title="Scan QR Code"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></button>
-              </div>
-            </div>
-          </div>
-                <button class="btn-scan" onclick="openScanner('f_pages','Pages')" title="Scan QR Code"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></button>
-              </div>
+              <input type="number" id="f_forms" placeholder="e.g. 4" min="0">
             </div>
           </div>
           <div class="row-2">
             <div>
               <label>Signatures</label>
-              <div class="scan-wrap">
-                <input type="number" id="f_sigs" placeholder="2" min="0">
-                <button class="btn-scan" onclick="openScanner('f_sigs','Signatures')" title="Scan QR Code"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></button>
-              </div>
+              <input type="number" id="f_sigs" placeholder="2" min="0">
             </div>
             <div>
               <label>Paper Size</label>
-              <div class="scan-wrap">
-                <input type="text" id="f_papersize" placeholder='8.5" x 11"'>
-                <button class="btn-scan" onclick="openScanner('f_papersize','Paper Size')" title="Scan QR Code"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></button>
-              </div>
+              <input type="text" id="f_papersize" placeholder='8.5" x 11"'>
             </div>
           </div>
           <label>Paper Type</label>
@@ -600,7 +632,57 @@ select:focus, input:focus { border-color:var(--accent); background:#fff; }
           </div>
         </div>
       </div>
-      <div style="background:rgba(240,165,0,0.08);border:1px solid rgba(240,165,0,0.25);border-radius:6px;padding:10px 14px;margin-bottom:12px;">
+      <!-- Scheduling extended fields — shown only when Scheduling dept selected -->
+      <div id="sched_panel" class="hidden">
+        <div class="panel" style="margin-top:12px;">
+          <div class="panel-title">⏱ Scheduling Details</div>
+          <div class="panel-body">
+            <div class="row-2">
+              <div><label>Customer Name</label><input type="text" id="f_customer" placeholder="Customer name"></div>
+              <div><label>Due Date</label><input type="date" id="f_due_date"></div>
+            </div>
+            <div class="row-2">
+              <div><label>Product Type</label><input type="text" id="f_product_type" placeholder="e.g. Brochure, Book, Postcard"></div>
+              <div><label>Finished Size</label><input type="text" id="f_finished_size" placeholder='e.g. 8.5" x 11"'></div>
+            </div>
+            <div class="row-2">
+              <div><label>Number of Signatures</label><input type="number" id="f_sched_sigs" min="0" placeholder="e.g. 4"></div>
+              <div><label>Forms per Sig</label><input type="number" id="f_sched_forms" min="0" placeholder="e.g. 2"></div>
+            </div>
+            <label>Print Process</label>
+            <div style="display:flex;flex-wrap:wrap;gap:12px;margin-bottom:12px;">
+              <label style="display:flex;align-items:center;gap:6px;font-weight:600;cursor:pointer;"><input type="radio" name="print_process" value="Offset"> Offset</label>
+              <label style="display:flex;align-items:center;gap:6px;font-weight:600;cursor:pointer;"><input type="radio" name="print_process" value="Digital"> Digital</label>
+              <label style="display:flex;align-items:center;gap:6px;font-weight:600;cursor:pointer;"><input type="radio" name="print_process" value="Outsource"> Outsource</label>
+              <label style="display:flex;align-items:center;gap:6px;font-weight:600;cursor:pointer;"><input type="radio" name="print_process" value="Pull from Inventory"> Pull from Inventory</label>
+              <label style="display:flex;align-items:center;gap:6px;font-weight:600;cursor:pointer;"><input type="radio" name="print_process" value="Other"> Other</label>
+            </div>
+            <div class="panel-title" style="margin-top:8px;margin-bottom:8px;font-size:.72rem;">Paper Specifications</div>
+            <div class="row-2">
+              <div><label>Parent Sheet Size</label><input type="text" id="f_parent_size" placeholder='e.g. 26" x 40"'></div>
+              <div><label>Press Sheet Size</label><input type="text" id="f_press_size" placeholder='e.g. 13" x 20"'></div>
+            </div>
+            <div class="row-2">
+              <div><label>Up on Press</label><input type="number" id="f_up_on_press" min="1" placeholder="e.g. 4"></div>
+              <div><label>Waste %</label><input type="number" id="f_waste_pct" min="0" max="100" placeholder="e.g. 5"></div>
+            </div>
+            <div class="row-2">
+              <div><label>Paper Weight</label><input type="text" id="f_paper_weight" placeholder='e.g. 100lb Coated Text'></div>
+              <div>
+                <label>Calculated Press Sheets</label>
+                <div style="display:flex;gap:8px;align-items:center;">
+                  <input type="number" id="f_calc_press_sheets" placeholder="Auto-calculated" readonly style="background:#f0f0f0;">
+                  <button class="btn btn-secondary btn-sm" onclick="calcPressSheets()" style="white-space:nowrap;">⟳ Calc</button>
+                </div>
+              </div>
+            </div>
+            <label>Scheduling Notes</label>
+            <textarea id="f_sched_notes" rows="3" placeholder="Additional scheduling notes, special instructions..." style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-family:'Barlow',sans-serif;font-size:.85rem;resize:vertical;"></textarea>
+          </div>
+        </div>
+      </div>
+
+      <div style="background:rgba(240,165,0,0.08);border:1px solid rgba(240,165,0,0.25);border-radius:6px;padding:10px 14px;margin-bottom:12px;" id="mr_start_panel">
         <div style="font-size:.62rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:6px;">Make Ready Start Time</div>
         <div class="time-row">
           <input type="datetime-local" id="f_mr_start_time">
@@ -608,7 +690,41 @@ select:focus, input:focus { border-color:var(--accent); background:#fff; }
         </div>
         <div style="font-size:.65rem;color:var(--muted);margin-top:6px;">Leave blank to use current time automatically</div>
       </div>
-      <button class="btn btn-primary" style="width:100%;padding:13px;font-size:.88rem;" onclick="createJob()">✓ Create Job &amp; Start Make Ready</button>
+      <button class="btn btn-primary" style="width:100%;padding:13px;font-size:.88rem;" onclick="createJob()" id="btn_create_job">✓ Create Job &amp; Start Make Ready</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ JOB REPORT ═══ -->
+<div id="view_report" class="content hidden">
+  <div class="view-header">
+    <h2 class="view-title">Job Production Report</h2>
+    <button class="btn btn-secondary btn-sm" onclick="window.print()">🖨 Print Report</button>
+  </div>
+  <div style="display:flex;gap:10px;align-items:center;margin-bottom:20px;">
+    <div class="scan-wrap" style="flex:1;max-width:320px;">
+      <input type="text" id="report_job_input" placeholder="Enter Job Number..." style="font-size:.9rem;padding:10px 14px;">
+      <button class="btn-scan" onclick="openScanner('report_job_input','Job Number')" title="Scan QR Code"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></button>
+    </div>
+    <button class="btn btn-primary" onclick="loadJobReport()">🔍 Pull Report</button>
+  </div>
+  <div id="report_content">
+    <div style="text-align:center;padding:60px 20px;color:var(--muted);">
+      <div style="font-size:2rem;margin-bottom:12px;">📄</div>
+      <div style="font-size:.85rem;font-weight:600;">Enter a Job Number above to pull the full production report from Google Sheets</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MATERIAL REQUISITION MODAL ═══ -->
+<div id="mr_modal" class="modal-overlay hidden">
+  <div class="modal" style="max-width:600px;">
+    <div class="modal-title">Material Requisition</div>
+    <div id="mr_preview" style="border:1px solid var(--border);border-radius:6px;padding:20px;margin-bottom:16px;background:#fff;"></div>
+    <div style="display:flex;gap:10px;">
+      <button class="btn btn-primary" onclick="printMR()">🖨 Print MR</button>
+      <button class="btn btn-secondary" onclick="saveMRtoDrive()">💾 Save to Drive</button>
+      <button class="btn btn-secondary" onclick="document.getElementById('mr_modal').classList.add('hidden')">Cancel</button>
     </div>
   </div>
 </div>
@@ -620,17 +736,24 @@ select:focus, input:focus { border-color:var(--accent); background:#fff; }
     <button class="btn btn-secondary btn-sm" onclick="renderDashboard()">↻ Refresh</button>
   </div>
   <div class="dash-summary" id="dash_summary"></div>
+  <div id="dept_report"></div>
+  <div class="dept-header"><div class="dept-dot" style="background:#2ecc71"></div><div class="dept-title">Scheduling</div><div class="dept-count" id="cnt_sched"></div></div>
+  <div class="machine-cards" id="cards_sched"></div>
   <div class="dept-header"><div class="dept-dot" style="background:#9b59b6"></div><div class="dept-title">Prepress</div><div class="dept-count" id="cnt_prepress"></div></div>
   <div class="machine-cards" id="cards_prepress"></div>
   <div class="dept-header"><div class="dept-dot" style="background:var(--press)"></div><div class="dept-title">Press</div><div class="dept-count" id="cnt_press"></div></div>
   <div class="machine-cards" id="cards_press"></div>
   <div class="dept-header"><div class="dept-dot" style="background:var(--fold)"></div><div class="dept-title">Folding</div><div class="dept-count" id="cnt_fold"></div></div>
   <div class="machine-cards" id="cards_fold"></div>
-  <div class="dept-header"><div class="dept-dot" style="background:var(--bind)"></div><div class="dept-title">Bindery &amp; Finishing</div><div class="dept-count" id="cnt_bind"></div></div>
+  <div class="dept-header"><div class="dept-dot" style="background:var(--bind)"></div><div class="dept-title">Bindery</div><div class="dept-count" id="cnt_bind"></div></div>
   <div class="machine-cards" id="cards_bind"></div>
+  <div class="dept-header"><div class="dept-dot" style="background:#1abc9c"></div><div class="dept-title">Finishing</div><div class="dept-count" id="cnt_finish"></div></div>
+  <div class="machine-cards" id="cards_finish"></div>
   <div class="dept-header"><div class="dept-dot" style="background:#3498db"></div><div class="dept-title">Mailing</div><div class="dept-count" id="cnt_mail"></div></div>
   <div class="machine-cards" id="cards_mail"></div>
-  <div class="dept-header"><div class="dept-dot" style="background:var(--gray)"></div><div class="dept-title">Shipping</div><div class="dept-count" id="cnt_ship"></div></div>
+  <div class="dept-header"><div class="dept-dot" style="background:#e67e22"></div><div class="dept-title">Fulfillment</div><div class="dept-count" id="cnt_fulfill"></div></div>
+  <div class="machine-cards" id="cards_fulfill"></div>
+  <div class="dept-header"><div class="dept-dot" style="background:var(--gray)"></div><div class="dept-title">Shipping/Inventory</div><div class="dept-count" id="cnt_ship"></div></div>
   <div class="machine-cards" id="cards_ship"></div>
   <div class="charts-grid">
     <div class="chart-wrap"><div class="panel-title">Units / hr — Today</div><canvas id="c_uph"></canvas></div>
@@ -646,12 +769,15 @@ select:focus, input:focus { border-color:var(--accent); background:#fff; }
       <input type="text" id="arch_search" placeholder="Search job #, operator..." style="width:200px;font-size:.82rem;padding:7px 10px;" oninput="renderArchive()">
       <select id="arch_op" style="width:180px;font-size:.82rem;padding:7px 10px;" onchange="renderArchive()">
         <option value="">All Departments</option>
+        <option value="Scheduling">Scheduling</option>
         <option value="Prepress">Prepress</option>
         <option value="Press">Press</option>
         <option value="Folding">Folding</option>
-        <option value="Bindery &amp; Finishing">Bindery &amp; Finishing</option>
+        <option value="Bindery">Bindery</option>
+        <option value="Finishing">Finishing</option>
         <option value="Mailing">Mailing</option>
-        <option value="Shipping">Shipping</option>
+        <option value="Fulfillment">Fulfillment</option>
+        <option value="Shipping/Inventory">Shipping/Inventory</option>
       </select>
       <input type="date" id="arch_from" style="width:145px;font-size:.82rem;padding:7px 10px;" oninput="renderArchive()">
       <span style="font-size:.75rem;color:var(--muted);">to</span>
@@ -835,25 +961,32 @@ function applyAccessControl() {
   // Operators — filter Active Jobs to their department only
   // Hide department sections they don't have access to
   const deptSections = {
-    prepress: 'dept_prepress_section',
-    press:    'dept_press_section',
-    folding:  'dept_fold_section',
-    bindery:  'dept_bind_section',
-    mailing:  'dept_mail_section',
-    shipping: 'dept_ship_section'
+    scheduling:  'dept_sched_section',
+    prepress:    'dept_prepress_section',
+    press:       'dept_press_section',
+    folding:     'dept_fold_section',
+    bindery:     'dept_bind_section',
+    finishing:   'dept_finish_section',
+    mailing:     'dept_mail_section',
+    fulfillment: 'dept_fulfill_section',
+    shipping:    'dept_ship_section'
   };
 
   Object.entries(deptSections).forEach(([key, id]) => {
     const el = document.getElementById(id);
     if (!el) return;
     if (!dept.includes(key)) {
-      el.style.display = 'none'; // hide sections they don't belong to
+      el.style.display = 'none';
     }
   });
 
   // Restrict New Job form — pre-select their operation type
   if (dept.length === 1) {
-    const opMap = { press:'Printing', folding:'Folding', bindery:'Binding' };
+    const opMap = {
+      scheduling:'Scheduling', prepress:'Prepress', press:'Press',
+      folding:'Folding', bindery:'Bindery', finishing:'Finishing',
+      mailing:'Mailing', fulfillment:'Fulfillment', shipping:'Shipping/Inventory'
+    };
     const opType = opMap[dept[0]];
     if (opType) {
       setTimeout(() => {
@@ -880,7 +1013,9 @@ function doLogout() {
 
     // Reset any hidden elements
     document.querySelectorAll('.ntab').forEach(btn => btn.style.display = '');
-    ['dept_press_section','dept_fold_section','dept_bind_section'].forEach(id => {
+    ['dept_sched_section','dept_prepress_section','dept_press_section',
+     'dept_fold_section','dept_bind_section','dept_finish_section',
+     'dept_mail_section','dept_fulfill_section','dept_ship_section'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.style.display = '';
     });
@@ -1141,7 +1276,7 @@ function closeScanner() {
 }
 
 // ── CONSTANTS ─────────────────────────────────────────────────────────────────
-const SHEET_URL = 'https://script.google.com/a/macros/epmptx.com/s/AKfycby78ZYJeLPCJy30wQtydFRBNKT4qoKZ0U-WbeXGdSblF7Li4SY5jZwLsr6FDdD4p-n4qQ/exec';
+const SHEET_URL = 'https://script.google.com/a/macros/epmptx.com/s/AKfycbzG4NkA7C9Xv4SB2WXbPMKHQ9BHYIrkIhDIeA5ClOR2ItkQaQtYf0dD6PFZqvtwCGKpPQ/exec';
 
 // Returns current local time as datetime-local string (fixes timezone offset bug)
 function localNow() {
@@ -1150,12 +1285,15 @@ function localNow() {
 }
 
 const MACHINES = {
-  'Prepress':            ['Preparation & Preflight','Proofing & Approval','Imposition & Platemaking','Direct Mail Prep','Database Management','Inkjet Addressing'],
+  'Scheduling':          ['Job Intake & Scheduling'],
+  'Prepress':            ['Artwork Prep & Proof Approval','Imposition & Plate Making','Database Management'],
   'Press':               ['Heidelberg Press 1','Heidelberg Press 2','Heidelberg Press 3','Shinohara Press 4'],
   'Folding':             ['F1-MBO-B26-1','F2-MBO-B26-2','F3-MBO-B30','F4-STAHL-STA1','F5-STAHL-STA2','F6-STAHL-B14','F7-BAUM-2020','F8-STAHL-B14'],
-  'Bindery & Finishing': ['Outsourcing','Cutting','Die-Cutting','Scoring & Creasing','Collating','Binding','Kitting','Shrink-Wrapping'],
+  'Bindery':             ['Cutting','Die-Cutting','Scoring & Creasing','Collating','Binding','Stitching'],
+  'Finishing':           ['Outsourcing','Kitting','Shrink-Wrapping','Laminating','UV Coating'],
   'Mailing':             ['Inkjet Addressing','Inserting','Sealing & Tabbing'],
-  'Shipping':            ['Local Delivery','Freight','UPS','FedEx','USPS','Customer Pickup']
+  'Fulfillment':         ['Fulfillment Services'],
+  'Shipping/Inventory':  ['Out for Delivery','Hold for Inventory']
 };
 
 let chartUph = null, chartUnits = null;
@@ -1179,6 +1317,7 @@ function showView(v, el) {
   if (v === 'active')  renderActiveJobs();
   if (v === 'dash')    renderDashboard();
   if (v === 'archive') renderArchive();
+  if (v === 'report')  document.getElementById('report_job_input') && document.getElementById('report_job_input').focus();
 }
 
 // ── FORM ──────────────────────────────────────────────────────────────────────
@@ -1192,10 +1331,275 @@ function onOpChange() {
       o.value = m; o.textContent = m; sel.appendChild(o);
     });
   }
+
   // Show Colors only for Press
   document.getElementById('field_colors').classList.toggle('hidden', op !== 'Press');
   // Show Fold Type only for Folding
   document.getElementById('field_fold').classList.toggle('hidden', op !== 'Folding');
+  // Show Scheduling panel only for Scheduling
+  document.getElementById('sched_panel').classList.toggle('hidden', op !== 'Scheduling');
+  // Show Fulfillment notes only for Fulfillment
+  document.getElementById('field_fulfillment_notes').classList.toggle('hidden', op !== 'Fulfillment');
+  // Show Shipping function only for Shipping/Inventory
+  document.getElementById('field_shipping_func').classList.toggle('hidden', op !== 'Shipping/Inventory');
+  // Hide MR start time for Scheduling (uses SCHEDULED button instead)
+  document.getElementById('mr_start_panel').classList.toggle('hidden', op === 'Scheduling');
+  // Change submit button text for Scheduling
+  const btn = document.getElementById('btn_create_job');
+  if (op === 'Scheduling') {
+    btn.textContent = '📅 Schedule This Job';
+    btn.onclick = () => createScheduledJob();
+  } else {
+    btn.textContent = '✓ Create Job & Start Make Ready';
+    btn.onclick = () => createJob();
+  }
+}
+
+// ── AUTO-FILL FROM EPMP JOB STATUS SHEET ─────────────────────
+let _jobLookupTimer = null;
+
+function scheduleJobLookup(val) {
+  clearTimeout(_jobLookupTimer);
+  const status = document.getElementById('job_lookup_status');
+  if (!val || val.trim().length < 3) { if(status) status.textContent = ''; return; }
+  if (status) status.textContent = '⏳ Looking up job...';
+  _jobLookupTimer = setTimeout(() => lookupJobFromSheet(val.trim()), 800);
+}
+
+function lookupJobFromSheet(jobNum) {
+  const status = document.getElementById('job_lookup_status');
+  fetch(SHEET_URL + '?action=getJob&jobNumber=' + encodeURIComponent(jobNum))
+    .then(r => r.json())
+    .then(data => {
+      if (data.found) {
+        autoFillJobForm(data);
+        if (status) status.innerHTML = '<span style="color:var(--green);">✓ Auto-filled from EPMP Job Status Sheet</span>';
+      } else {
+        if (status) status.innerHTML = '<span style="color:var(--muted);">Job not found in sheet — enter details manually</span>';
+      }
+    })
+    .catch(() => {
+      if (status) status.innerHTML = '<span style="color:var(--muted);">Sheet unavailable — enter details manually</span>';
+    });
+}
+
+function autoFillJobForm(data) {
+  const set = (id, val) => { const el = document.getElementById(id); if (el && val) el.value = val; };
+  set('f_po',           data.poNumber);
+  set('f_qty',          data.qty);
+  set('f_customer',     data.customer);
+  set('f_due_date',     data.dueDate);   // format: yyyy-MM-dd
+  set('f_product_type', data.jobName);
+  set('f_sched_notes',  data.jobName);
+  // Fill PO into scheduling form too
+  const poEl = document.getElementById('f_po');
+  if (poEl && data.poNumber) poEl.value = data.poNumber;
+  toast('✓ Job data loaded from EPMP Job Status Sheet');
+}
+
+
+function calcPressSheets() {
+  const qty     = parseInt(document.getElementById('f_qty').value) || 0;
+  const upPress = parseInt(document.getElementById('f_up_on_press').value) || 1;
+  const wastePct= parseFloat(document.getElementById('f_waste_pct').value) || 0;
+  if (!qty) { toast('Enter Quantity first'); return; }
+  const base  = Math.ceil(qty / upPress);
+  const waste = Math.ceil(base * (wastePct / 100));
+  const total = base + waste;
+  document.getElementById('f_calc_press_sheets').value = total;
+  document.getElementById('f_press_sheets').value = total;
+  toast('Press sheets: ' + total.toLocaleString() + ' (' + base.toLocaleString() + ' + ' + waste.toLocaleString() + ' waste)');
+}
+
+// ── CREATE SCHEDULED JOB (Scheduling dept) ────────────────────
+function createScheduledJob() {
+  const operator  = document.getElementById('f_operator').value;
+  const jobNumber = document.getElementById('f_job').value.trim();
+  const poNumber  = document.getElementById('f_po').value.trim();
+  const customer  = document.getElementById('f_customer').value.trim();
+  const dueDate   = document.getElementById('f_due_date').value;
+  const productType = document.getElementById('f_product_type').value.trim();
+  const finishedSize = document.getElementById('f_finished_size').value.trim();
+  const sigs      = parseInt(document.getElementById('f_sched_sigs').value) || 0;
+  const forms     = parseInt(document.getElementById('f_sched_forms').value) || 0;
+  const printProcess = document.querySelector('input[name="print_process"]:checked')?.value || '';
+  const parentSize = document.getElementById('f_parent_size').value.trim();
+  const pressSize  = document.getElementById('f_press_size').value.trim();
+  const upOnPress  = parseInt(document.getElementById('f_up_on_press').value) || 0;
+  const wastePct   = parseFloat(document.getElementById('f_waste_pct').value) || 0;
+  const paperWeight = document.getElementById('f_paper_weight').value.trim();
+  const pressSheets = parseInt(document.getElementById('f_calc_press_sheets').value) || 0;
+  const qty        = parseInt(document.getElementById('f_qty').value) || 0;
+  const notes      = document.getElementById('f_sched_notes').value.trim();
+
+  if (!operator || !jobNumber) { alert('Operator and Job Number are required.'); return; }
+
+  const now = localNow();
+  const job = {
+    id: Date.now().toString(),
+    date: now.slice(0,10),
+    status: 'scheduled',
+    scheduledAt: now,
+    operator, jobNumber, poNumber, customer, dueDate,
+    opType: 'Scheduling',
+    machine: 'Job Intake & Scheduling',
+    productType, finishedSize, sigs, forms,
+    printProcess, parentSize, pressSize, upOnPress, wastePct,
+    paperWeight, pressSheets, qty,
+    notes,
+    totalUnits: 0, totalDT: 0, prodLogs: [], downtime: []
+  };
+
+  const all = getData();
+  all.push(job);
+  setData(all);
+  resetNewForm();
+  showView('active', document.querySelectorAll('.ntab')[0]);
+  renderActiveJobs();
+  toast('✓ Job ' + jobNumber + ' scheduled!');
+}
+
+// ── MATERIAL REQUISITION ──────────────────────────────────────
+function openMR(jobId) {
+  const job = getData().find(j => j.id === jobId);
+  if (!job) return;
+  const today = localToday();
+  document.getElementById('mr_preview').innerHTML = `
+    <div style="font-family:Arial,sans-serif;">
+      <div style="text-align:center;border-bottom:2px solid #1a1a2e;padding-bottom:10px;margin-bottom:14px;">
+        <div style="font-size:1.3rem;font-weight:900;color:#1a1a2e;">EPMP</div>
+        <div style="font-size:1rem;font-weight:700;letter-spacing:.1em;">MATERIAL REQUISITION</div>
+      </div>
+      <table style="width:100%;border-collapse:collapse;font-size:.85rem;">
+        <tr><td style="padding:6px;font-weight:700;width:45%;border-bottom:1px solid #eee;">Job Number:</td><td style="padding:6px;border-bottom:1px solid #eee;">${job.jobNumber}</td></tr>
+        <tr><td style="padding:6px;font-weight:700;border-bottom:1px solid #eee;">Customer:</td><td style="padding:6px;border-bottom:1px solid #eee;">${job.customer||'—'}</td></tr>
+        <tr><td style="padding:6px;font-weight:700;border-bottom:1px solid #eee;">Date of Request:</td><td style="padding:6px;border-bottom:1px solid #eee;">${today}</td></tr>
+        <tr><td style="padding:6px;font-weight:700;border-bottom:1px solid #eee;">Due Date:</td><td style="padding:6px;border-bottom:1px solid #eee;">${job.dueDate||'—'}</td></tr>
+        <tr><td style="padding:6px;font-weight:700;border-bottom:1px solid #eee;">Quantity:</td><td style="padding:6px;border-bottom:1px solid #eee;">${(job.qty||0).toLocaleString()}</td></tr>
+        <tr><td style="padding:6px;font-weight:700;border-bottom:1px solid #eee;">Press Sheets Required:</td><td style="padding:6px;border-bottom:1px solid #eee;font-weight:700;color:#e74c3c;">${(job.pressSheets||0).toLocaleString()}</td></tr>
+        <tr><td style="padding:6px;font-weight:700;border-bottom:1px solid #eee;">Paper Weight:</td><td style="padding:6px;border-bottom:1px solid #eee;">${job.paperWeight||'—'}</td></tr>
+        <tr><td style="padding:6px;font-weight:700;border-bottom:1px solid #eee;">Parent Sheet Size:</td><td style="padding:6px;border-bottom:1px solid #eee;">${job.parentSize||'—'}</td></tr>
+        <tr><td style="padding:6px;font-weight:700;border-bottom:1px solid #eee;">Press Sheet Size:</td><td style="padding:6px;border-bottom:1px solid #eee;">${job.pressSize||'—'}</td></tr>
+        <tr><td style="padding:6px;font-weight:700;border-bottom:1px solid #eee;">Up on Press:</td><td style="padding:6px;border-bottom:1px solid #eee;">${job.upOnPress||'—'}</td></tr>
+        <tr><td style="padding:6px;font-weight:700;border-bottom:1px solid #eee;">Print Process:</td><td style="padding:6px;border-bottom:1px solid #eee;">${job.printProcess||'—'}</td></tr>
+        <tr><td style="padding:6px;font-weight:700;">Requested By:</td><td style="padding:6px;">${job.operator}</td></tr>
+      </table>
+      <div style="margin-top:16px;padding-top:12px;border-top:1px solid #eee;font-size:.75rem;color:#888;">
+        Warehouse Manager: Please pull material and confirm availability before production begins.
+      </div>
+    </div>`;
+  document.getElementById('mr_modal').classList.remove('hidden');
+  document.getElementById('mr_modal').dataset.jobId = jobId;
+}
+
+function printMR() {
+  const preview = document.getElementById('mr_preview').innerHTML;
+  const win = window.open('', '_blank');
+  win.document.write('<html><head><title>Material Requisition</title><style>body{font-family:Arial,sans-serif;padding:20px;} @media print{body{padding:0;}}</style></head><body>' + preview + '</body></html>');
+  win.document.close();
+  win.focus();
+  setTimeout(() => win.print(), 500);
+}
+
+function saveMRtoDrive() {
+  const jobId = document.getElementById('mr_modal').dataset.jobId;
+  const job   = getData().find(j => j.id === jobId);
+  if (!job) return;
+  fetch(SHEET_URL, {
+    method: 'POST',
+    body: JSON.stringify({ action: 'saveMR', job }),
+    headers: { 'Content-Type': 'application/json' }
+  }).then(() => toast('✓ MR saved to Drive')).catch(() => toast('MR print saved locally — Drive save failed'));
+  printMR();
+}
+
+// ── JOB REPORT (pulls from Google Sheets) ─────────────────────
+function loadJobReport() {
+  const jobNum = document.getElementById('report_job_input').value.trim();
+  if (!jobNum) { toast('Enter a job number first'); return; }
+  const el = document.getElementById('report_content');
+  el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted);">⏳ Loading report from Google Sheets...</div>';
+
+  fetch(SHEET_URL + '?action=jobReport&jobNumber=' + encodeURIComponent(jobNum))
+    .then(r => r.json())
+    .then(data => renderJobReport(jobNum, data))
+    .catch(() => {
+      // Fallback: show local data only
+      const local = getData().filter(j => j.jobNumber === jobNum);
+      renderJobReport(jobNum, { rows: local, source: 'local' });
+    });
+}
+
+function renderJobReport(jobNum, data) {
+  const rows   = data.rows || [];
+  const source = data.source || 'sheets';
+  const el     = document.getElementById('report_content');
+
+  if (!rows.length) {
+    el.innerHTML = `<div style="text-align:center;padding:40px;color:var(--muted);">No production data found for <strong>${jobNum}</strong></div>`;
+    return;
+  }
+
+  // Find scheduling record for job header
+  const schedRow = rows.find(r => r.opType === 'Scheduling' || r.Department === 'Scheduling');
+  const deptColors = {
+    'Scheduling':'#2ecc71','Prepress':'#9b59b6','Press':'#e74c3c',
+    'Folding':'#f0a500','Bindery':'#00c2a8','Finishing':'#1abc9c',
+    'Mailing':'#3498db','Fulfillment':'#e67e22','Shipping/Inventory':'#95a5a6'
+  };
+
+  const deptOrder = ['Scheduling','Prepress','Press','Folding','Bindery','Finishing','Mailing','Fulfillment','Shipping/Inventory'];
+  const byDept    = {};
+  rows.forEach(r => {
+    const d = r.opType || r.Department || 'Unknown';
+    if (!byDept[d]) byDept[d] = [];
+    byDept[d].push(r);
+  });
+
+  let html = `
+    <div style="border:2px solid #1a1a2e;border-radius:8px;overflow:hidden;font-family:'Barlow',sans-serif;">
+      <div style="background:#1a1a2e;color:#fff;padding:14px 18px;display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <div style="font-size:1.1rem;font-weight:800;letter-spacing:.08em;">JOB ${jobNum}</div>
+          <div style="font-size:.72rem;opacity:.7;margin-top:2px;">Production Report · ${source === 'local' ? 'Local Data' : 'Google Sheets'}</div>
+        </div>
+        <div style="text-align:right;font-size:.75rem;opacity:.8;">${localToday()}</div>
+      </div>`;
+
+  if (schedRow) {
+    html += `
+      <div style="background:#f8f8f8;padding:12px 18px;border-bottom:1px solid #eee;display:grid;grid-template-columns:repeat(3,1fr);gap:8px;font-size:.78rem;">
+        <div><span style="font-weight:700;color:#555;">Customer:</span> ${schedRow.customer||schedRow.Customer||'—'}</div>
+        <div><span style="font-weight:700;color:#555;">Due Date:</span> ${schedRow.dueDate||schedRow['Due Date']||'—'}</div>
+        <div><span style="font-weight:700;color:#555;">Qty:</span> ${(schedRow.qty||schedRow.Qty||0).toLocaleString()}</div>
+        <div><span style="font-weight:700;color:#555;">Product:</span> ${schedRow.productType||schedRow['Product Type']||'—'}</div>
+        <div><span style="font-weight:700;color:#555;">Process:</span> ${schedRow.printProcess||schedRow['Print Process']||'—'}</div>
+        <div><span style="font-weight:700;color:#555;">Press Sheets:</span> ${(schedRow.pressSheets||0).toLocaleString()}</div>
+      </div>`;
+  }
+
+  deptOrder.forEach(dept => {
+    if (!byDept[dept]) return;
+    const color = deptColors[dept] || '#888';
+    html += `<div style="border-bottom:1px solid #eee;">
+      <div style="background:${color}22;border-left:4px solid ${color};padding:8px 16px;font-weight:700;font-size:.8rem;color:${color};">${dept.toUpperCase()}</div>`;
+    byDept[dept].forEach(r => {
+      html += `<div style="padding:8px 16px 8px 20px;border-bottom:1px solid #f0f0f0;font-size:.78rem;display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px;">
+        <div><span style="color:#888;font-size:.65rem;">OPERATOR</span><br>${r.operator||r.Operator||'—'}</div>
+        <div><span style="color:#888;font-size:.65rem;">OPERATION</span><br>${r.machine||r.Operation||'—'}</div>
+        <div><span style="color:#888;font-size:.65rem;">MR HRS</span><br>${r.mrHrs||r['MR Hrs']||'—'}</div>
+        <div><span style="color:#888;font-size:.65rem;">PROD HRS</span><br>${r.netProdHrs||r['Net Prod Hrs']||'—'}</div>
+        <div><span style="color:#888;font-size:.65rem;">UNITS</span><br>${(r.totalUnits||r['Total Units']||0).toLocaleString()}</div>
+        <div><span style="color:#888;font-size:.65rem;">U/HR</span><br>${r.uph||r['Units/hr']||'—'}</div>
+        <div><span style="color:#888;font-size:.65rem;">DOWNTIME HRS</span><br>${r.totalDowntimeHrs||r['Downtime Hrs']||'0'}</div>
+        <div><span style="color:#888;font-size:.65rem;">DATE</span><br>${r.date||r.Date||'—'}</div>
+      </div>`;
+    });
+    html += '</div>';
+  });
+
+  html += '</div>';
+  el.innerHTML = html;
 }
 
 function createJob() {
@@ -1252,12 +1656,15 @@ function renderActiveJobs() {
 
   // Group active jobs by department
   const depts = [
-    { key:'prepress', label:'Prepress',            opType:'Prepress',            machines: MACHINES['Prepress'] },
-    { key:'press',    label:'Press',               opType:'Press',               machines: MACHINES['Press'] },
-    { key:'fold',     label:'Folding',             opType:'Folding',             machines: MACHINES['Folding'] },
-    { key:'bind',     label:'Bindery & Finishing', opType:'Bindery & Finishing', machines: MACHINES['Bindery & Finishing'] },
-    { key:'mail',     label:'Mailing',             opType:'Mailing',             machines: MACHINES['Mailing'] },
-    { key:'ship',     label:'Shipping',            opType:'Shipping',            machines: MACHINES['Shipping'] }
+    { key:'sched',   label:'Scheduling',       opType:'Scheduling',       machines: MACHINES['Scheduling'] },
+    { key:'prepress',label:'Prepress',          opType:'Prepress',         machines: MACHINES['Prepress'] },
+    { key:'press',   label:'Press',             opType:'Press',            machines: MACHINES['Press'] },
+    { key:'fold',    label:'Folding',           opType:'Folding',          machines: MACHINES['Folding'] },
+    { key:'bind',    label:'Bindery',           opType:'Bindery',          machines: MACHINES['Bindery'] },
+    { key:'finish',  label:'Finishing',         opType:'Finishing',        machines: MACHINES['Finishing'] },
+    { key:'mail',    label:'Mailing',           opType:'Mailing',          machines: MACHINES['Mailing'] },
+    { key:'fulfill', label:'Fulfillment',       opType:'Fulfillment',      machines: MACHINES['Fulfillment'] },
+    { key:'ship',    label:'Shipping/Inventory',opType:'Shipping/Inventory',machines: MACHINES['Shipping/Inventory'] }
   ];
 
   depts.forEach(dept => {
@@ -1286,7 +1693,7 @@ function renderActiveJobs() {
 }
 
 function renderJobCard(j) {
-  const stageLabel = { setup:'Setup', makeready:'Make Ready', production:'In Production', complete:'Complete' };
+  const stageLabel = { scheduled:'📅 Scheduled', setup:'Setup', makeready:'Make Ready', production:'In Production', complete:'Complete' };
   const now = new Date();
 
   // Detect active (open) downtime
@@ -1306,6 +1713,22 @@ function renderJobCard(j) {
     </div>` : '';
 
   let metaRows = '', actions = '';
+
+  // ── SCHEDULED (Scheduling dept) ──────────────────────────────
+  if (j.status === 'scheduled') {
+    const schedDate  = parseLocalTime(j.scheduledAt);
+    const elapsedDays = schedDate ? Math.floor((now - schedDate) / 86400000) : 0;
+    metaRows = `
+      <div class="jc-meta-item"><div class="jcm-lbl">Customer</div><div class="jcm-val">${j.customer||'—'}</div></div>
+      <div class="jc-meta-item"><div class="jcm-lbl">Due Date</div><div class="jcm-val">${j.dueDate||'—'}</div></div>
+      <div class="jc-meta-item"><div class="jcm-lbl">Process</div><div class="jcm-val">${j.printProcess||'—'}</div></div>
+      <div class="jc-meta-item"><div class="jcm-lbl">Qty</div><div class="jcm-val mono">${(j.qty||0).toLocaleString()}</div></div>
+      <div class="jc-meta-item"><div class="jcm-lbl">Press Sheets</div><div class="jcm-val mono">${(j.pressSheets||0).toLocaleString()}</div></div>
+      <div class="jc-meta-item"><div class="jcm-lbl">Days in Production</div><div class="jcm-val mono" style="${elapsedDays>5?'color:var(--red);font-weight:900;':''}">${elapsedDays} day${elapsedDays!==1?'s':''}</div></div>`;
+    actions = `
+      <button class="btn btn-secondary btn-sm" onclick="openMR('${j.id}')">📋 Material Requisition</button>
+      <button class="btn btn-success btn-sm" onclick="markInvoiced('${j.id}')">✓ Mark Invoiced</button>`;
+  } else
 
   if (j.status === 'makeready') {
     const mrStartDate = parseLocalTime(j.mrStart);
@@ -1728,37 +2151,164 @@ function localToday() {
 
 // ── DASHBOARD ─────────────────────────────────────────────────────────────────
 function renderDashboard() {
-  const all   = getData();
-  const today = localToday();  // FIX: use local date, not UTC
-
-  // Include both complete AND active jobs for today's totals
+  const all     = getData();
+  const today   = localToday();
   const todayAll   = all.filter(d => d.date === today);
   const complete   = todayAll.filter(d => d.status === 'complete');
-  const activeJobs = all.filter(d => d.status === 'production' || d.status === 'makeready');
+  const activeJobs = all.filter(d => d.status === 'production' || d.status === 'makeready' || d.status === 'scheduled');
+  const totalUnits = todayAll.reduce((s,d) => s + (d.totalUnits||0), 0);
+  const avgUph     = complete.length ? Math.round(complete.reduce((s,d)=>s+(d.uph||0),0)/complete.length) : 0;
+  const totalDT    = todayAll.reduce((s,d) => s + (d.totalDT||0), 0);
 
-  // Summary — count units from completed + in-progress logs
-  const totalJobs  = todayAll.length;
-  const totalUnits = todayAll.reduce((s,d) => s + d.totalUnits, 0);
-  const avgUph     = complete.length ? Math.round(complete.reduce((s,d)=>s+d.uph,0)/complete.length) : 0;
-  const totalDT    = todayAll.reduce((s,d) => s + d.totalDT, 0).toFixed(1);
-
-  document.getElementById('dash_summary').innerHTML = `
-    <div class="sc"><div class="sc-val" style="color:var(--fold)">${activeJobs.length}</div><div class="sc-lbl">Machines Active</div></div>
-    <div class="sc"><div class="sc-val">${totalJobs}</div><div class="sc-lbl">Jobs Today</div></div>
+  // ── Top summary strip ───────────────────────────────────────
+  let summaryHtml = `
+    <div class="sc"><div class="sc-val" style="color:var(--fold)">${activeJobs.length}</div><div class="sc-lbl">Active Jobs</div></div>
+    <div class="sc"><div class="sc-val">${todayAll.length}</div><div class="sc-lbl">Jobs Today</div></div>
     <div class="sc"><div class="sc-val">${totalUnits.toLocaleString()}</div><div class="sc-lbl">Units Today</div></div>
-    <div class="sc"><div class="sc-val">${totalDT}</div><div class="sc-lbl">Downtime hrs</div></div>`;
+    <div class="sc"><div class="sc-val">${avgUph || '—'}</div><div class="sc-lbl">Avg U/hr</div></div>
+    <div class="sc"><div class="sc-val" style="${totalDT>1?'color:var(--red)':''}">${totalDT.toFixed(1)}</div><div class="sc-lbl">Downtime hrs</div></div>`;
+  document.getElementById('dash_summary').innerHTML = summaryHtml;
 
-  renderDeptCards('Prepress',           'prepress', all, today);
-  renderDeptCards('Press',              'press',    all, today);
-  renderDeptCards('Folding',            'fold',     all, today);
-  renderDeptCards('Bindery & Finishing','bind',     all, today);
-  renderDeptCards('Mailing',            'mail',     all, today);
-  renderDeptCards('Shipping',           'ship',     all, today);
+  // ── Departmental Report (managers/admins only) ───────────────
+  const role = currentUser ? currentUser.role : null;
+  const deptReportEl = document.getElementById('dept_report');
+  if (!deptReportEl) { renderDeptSections(all, today, todayAll); return; }
+
+  if (role === 'admin' || role === 'manager') {
+    const depts = [
+      { key:'Scheduling',        color:'#2ecc71' },
+      { key:'Prepress',          color:'#9b59b6' },
+      { key:'Press',             color:'#e74c3c' },
+      { key:'Folding',           color:'#f0a500' },
+      { key:'Bindery',           color:'#00c2a8' },
+      { key:'Finishing',         color:'#1abc9c' },
+      { key:'Mailing',           color:'#3498db' },
+      { key:'Fulfillment',       color:'#e67e22' },
+      { key:'Shipping/Inventory',color:'#95a5a6' }
+    ];
+
+    let reportHtml = `
+      <div style="background:var(--panel);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:24px;">
+        <div style="background:#1a1a2e;padding:12px 18px;display:flex;justify-content:space-between;align-items:center;">
+          <div style="color:#fff;font-weight:800;font-size:.85rem;letter-spacing:.08em;text-transform:uppercase;">📊 Departmental Summary — ${today}</div>
+          <div style="color:rgba(255,255,255,.5);font-size:.7rem;">${all.filter(d=>d.date===today).length} total entries today</div>
+        </div>
+        <div style="overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;font-size:.78rem;">
+          <thead>
+            <tr style="background:#f5f5f5;border-bottom:2px solid var(--border);">
+              <th style="padding:9px 14px;text-align:left;font-size:.68rem;letter-spacing:.08em;color:var(--muted);text-transform:uppercase;">Department</th>
+              <th style="padding:9px 10px;text-align:center;font-size:.68rem;letter-spacing:.08em;color:var(--muted);text-transform:uppercase;">Jobs Today</th>
+              <th style="padding:9px 10px;text-align:center;font-size:.68rem;letter-spacing:.08em;color:var(--muted);text-transform:uppercase;">Active</th>
+              <th style="padding:9px 10px;text-align:center;font-size:.68rem;letter-spacing:.08em;color:var(--muted);text-transform:uppercase;">Complete</th>
+              <th style="padding:9px 10px;text-align:center;font-size:.68rem;letter-spacing:.08em;color:var(--muted);text-transform:uppercase;">MR Hrs</th>
+              <th style="padding:9px 10px;text-align:center;font-size:.68rem;letter-spacing:.08em;color:var(--muted);text-transform:uppercase;">Prod Hrs</th>
+              <th style="padding:9px 10px;text-align:right;font-size:.68rem;letter-spacing:.08em;color:var(--muted);text-transform:uppercase;">Units</th>
+              <th style="padding:9px 10px;text-align:center;font-size:.68rem;letter-spacing:.08em;color:var(--muted);text-transform:uppercase;">Avg U/hr</th>
+              <th style="padding:9px 10px;text-align:center;font-size:.68rem;letter-spacing:.08em;color:var(--red);text-transform:uppercase;">Downtime</th>
+              <th style="padding:9px 14px;text-align:left;font-size:.68rem;letter-spacing:.08em;color:var(--muted);text-transform:uppercase;">Operators</th>
+            </tr>
+          </thead>
+          <tbody>`;
+
+    depts.forEach(dept => {
+      const dRows    = todayAll.filter(d => d.opType === dept.key);
+      const active   = all.filter(d => d.opType === dept.key && (d.status==='production'||d.status==='makeready'||d.status==='scheduled'));
+      const done     = dRows.filter(d => d.status === 'complete');
+      const mrHrs    = dRows.reduce((s,d)=>s+(d.mrHrs||0),0);
+      const prodHrs  = dRows.reduce((s,d)=>s+(d.netProdHrs||d.prodHrs||0),0);
+      const units    = dRows.reduce((s,d)=>s+(d.totalUnits||0),0);
+      const dtHrs    = dRows.reduce((s,d)=>s+(d.totalDT||0),0);
+      const uphVals  = done.filter(d=>(d.uph||0)>0);
+      const avgU     = uphVals.length ? Math.round(uphVals.reduce((s,d)=>s+(d.uph||0),0)/uphVals.length) : 0;
+      const ops      = [...new Set(dRows.map(d=>d.operator).filter(Boolean))];
+      const hasActive = active.length > 0;
+
+      reportHtml += `
+        <tr style="border-bottom:1px solid var(--border);${hasActive?'background:rgba(240,165,0,.04)':''}">
+          <td style="padding:9px 14px;">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div style="width:8px;height:8px;border-radius:50%;background:${dept.color};flex-shrink:0;${hasActive?'box-shadow:0 0 6px '+dept.color:''}"></div>
+              <span style="font-weight:700;color:var(--text);">${dept.key}</span>
+            </div>
+          </td>
+          <td style="padding:9px 10px;text-align:center;">${dRows.length||'—'}</td>
+          <td style="padding:9px 10px;text-align:center;">${active.length ? '<span style="font-weight:700;color:'+dept.color+'">'+active.length+'</span>' : '—'}</td>
+          <td style="padding:9px 10px;text-align:center;">${done.length||'—'}</td>
+          <td style="padding:9px 10px;text-align:center;font-family:monospace;">${mrHrs ? mrHrs.toFixed(2) : '—'}</td>
+          <td style="padding:9px 10px;text-align:center;font-family:monospace;">${prodHrs ? prodHrs.toFixed(2) : '—'}</td>
+          <td style="padding:9px 10px;text-align:right;font-weight:700;">${units ? units.toLocaleString() : '—'}</td>
+          <td style="padding:9px 10px;text-align:center;font-family:monospace;">${avgU||'—'}</td>
+          <td style="padding:9px 10px;text-align:center;font-family:monospace;${dtHrs>0?'color:var(--red);font-weight:700;':'color:var(--muted);'}">${dtHrs ? dtHrs.toFixed(2) : '—'}</td>
+          <td style="padding:9px 14px;font-size:.72rem;color:var(--muted);">${ops.join(', ')||'—'}</td>
+        </tr>`;
+
+      // Operator breakdown rows (expandable detail)
+      if (dRows.length) {
+        const byOp = {};
+        dRows.forEach(r => { if (!byOp[r.operator]) byOp[r.operator]=[]; byOp[r.operator].push(r); });
+        Object.entries(byOp).forEach(([op, rows]) => {
+          const opUnits = rows.reduce((s,d)=>s+(d.totalUnits||0),0);
+          const opProd  = rows.reduce((s,d)=>s+(d.netProdHrs||d.prodHrs||0),0);
+          const opDT    = rows.reduce((s,d)=>s+(d.totalDT||0),0);
+          const opOps   = [...new Set(rows.map(r=>r.machine).filter(Boolean))];
+          reportHtml += `
+            <tr style="background:#fafafa;border-bottom:1px solid #f0f0f0;">
+              <td style="padding:5px 14px 5px 34px;color:var(--muted);font-size:.72rem;" colspan="1">↳ ${op}</td>
+              <td style="padding:5px 10px;text-align:center;font-size:.72rem;color:var(--muted);">${rows.length}</td>
+              <td colspan="2" style="padding:5px 10px;font-size:.7rem;color:var(--muted);text-align:center;">${rows.filter(r=>r.status!=='complete').length} active</td>
+              <td style="padding:5px 10px;text-align:center;font-family:monospace;font-size:.72rem;color:var(--muted);">${rows.reduce((s,d)=>s+(d.mrHrs||0),0).toFixed(2)}</td>
+              <td style="padding:5px 10px;text-align:center;font-family:monospace;font-size:.72rem;color:var(--muted);">${opProd.toFixed(2)}</td>
+              <td style="padding:5px 10px;text-align:right;font-size:.72rem;">${opUnits.toLocaleString()}</td>
+              <td colspan="1" style="padding:5px 10px;font-size:.7rem;color:var(--muted);text-align:center;">${opDT>0?'<span style="color:var(--red);">'+opDT.toFixed(2)+' DT</span>':'—'}</td>
+              <td style="padding:5px 10px;font-size:.7rem;color:var(--muted);" colspan="2">${opOps.join(' · ')||'—'}</td>
+            </tr>`;
+        });
+      }
+    });
+
+    // Totals row
+    const totalMR   = todayAll.reduce((s,d)=>s+(d.mrHrs||0),0);
+    const totalProd = todayAll.reduce((s,d)=>s+(d.netProdHrs||d.prodHrs||0),0);
+    reportHtml += `
+          <tr style="background:#1a1a2e;color:#fff;font-weight:700;">
+            <td style="padding:10px 14px;font-size:.8rem;letter-spacing:.06em;">TOTALS</td>
+            <td style="padding:10px;text-align:center;">${todayAll.length}</td>
+            <td style="padding:10px;text-align:center;">${activeJobs.length}</td>
+            <td style="padding:10px;text-align:center;">${complete.length}</td>
+            <td style="padding:10px;text-align:center;font-family:monospace;">${totalMR.toFixed(2)}</td>
+            <td style="padding:10px;text-align:center;font-family:monospace;">${totalProd.toFixed(2)}</td>
+            <td style="padding:10px;text-align:right;">${totalUnits.toLocaleString()}</td>
+            <td style="padding:10px;text-align:center;">${avgUph||'—'}</td>
+            <td style="padding:10px;text-align:center;font-family:monospace;${totalDT>0?'color:#ff8080;':''}">${totalDT.toFixed(2)}</td>
+            <td style="padding:10px 14px;"></td>
+          </tr>
+        </tbody></table></div>
+      </div>`;
+
+    deptReportEl.innerHTML = reportHtml;
+  } else {
+    deptReportEl.innerHTML = '';
+  }
+
+  renderDeptSections(all, today, todayAll);
+}
+
+function renderDeptSections(all, today, todayAll) {
+
+function renderDeptSections(all, today, todayAll) {
+  renderDeptCards('Scheduling',       'sched',   all, today);
+  renderDeptCards('Prepress',         'prepress',all, today);
+  renderDeptCards('Press',            'press',   all, today);
+  renderDeptCards('Folding',          'fold',    all, today);
+  renderDeptCards('Bindery',          'bind',    all, today);
+  renderDeptCards('Finishing',        'finish',  all, today);
+  renderDeptCards('Mailing',          'mail',    all, today);
+  renderDeptCards('Fulfillment',      'fulfill', all, today);
+  renderDeptCards('Shipping/Inventory','ship',   all, today);
   renderCharts(todayAll);
   document.getElementById('refresh_lbl').textContent = 'Last updated: ' + new Date().toLocaleTimeString();
 }
-
-function getMachineStatus(machine, all, today) {
   // Check active (non-complete) jobs first — they are live right now
   const activeJob = all.find(d => d.machine === machine && d.status !== 'complete');
   if (activeJob) {
@@ -1869,12 +2419,15 @@ function renderDeptCards(opType, cls, all, today) {
 
 function renderCharts(td) {
   const deptColors = {
-    'Prepress':            '#9b59b6',
-    'Press':               '#e74c3c',
-    'Folding':             '#f0a500',
-    'Bindery & Finishing': '#00c2a8',
-    'Mailing':             '#3498db',
-    'Shipping':            '#95a5a6'
+    'Scheduling':       '#2ecc71',
+    'Prepress':         '#9b59b6',
+    'Press':            '#e74c3c',
+    'Folding':          '#f0a500',
+    'Bindery':          '#00c2a8',
+    'Finishing':        '#1abc9c',
+    'Mailing':          '#3498db',
+    'Fulfillment':      '#e67e22',
+    'Shipping/Inventory':'#95a5a6'
   };
   const allItems  = Object.keys(MACHINES).flatMap(d => MACHINES[d].map(m => ({ dept:d, machine:m })));
   const labels    = allItems.map(x => x.machine.length > 11 ? x.machine.slice(0,11)+'…' : x.machine);
@@ -1895,7 +2448,20 @@ function renderCharts(td) {
   chartUnits = mk('c_units', units, chartUnits);
 }
 
-// Preview timer toggle — lets you see animations without needing real elapsed time
+// Mark job as invoiced (stops elapsed days clock for Scheduling)
+function markInvoiced(jobId) {
+  if (!confirm('Mark this job as Invoiced? This will stop the elapsed days counter.')) return;
+  const all = getData();
+  const job = all.find(j => j.id === jobId);
+  if (!job) return;
+  job.status    = 'complete';
+  job.invoicedAt = localNow();
+  setData(all);
+  renderActiveJobs();
+  toast('✓ Job ' + job.jobNumber + ' marked as Invoiced');
+}
+
+
 let previewTimers = false;
 function togglePreviewTimers(btn) {
   previewTimers = !previewTimers;
@@ -2059,12 +2625,15 @@ function renderArchive() {
     <div class="sc"><div class="sc-val">${totalDT}</div><div class="sc-lbl">Total DT hrs</div></div>`;
 
   // Render each department
-  renderArchiveSection('Prepress',           'prepress', sorted.filter(d => d.opType === 'Prepress'));
-  renderArchiveSection('Press',              'press',    sorted.filter(d => d.opType === 'Press'));
-  renderArchiveSection('Folding',            'fold',     sorted.filter(d => d.opType === 'Folding'));
-  renderArchiveSection('Bindery & Finishing','bind',     sorted.filter(d => d.opType === 'Bindery & Finishing'));
-  renderArchiveSection('Mailing',            'mail',     sorted.filter(d => d.opType === 'Mailing'));
-  renderArchiveSection('Shipping',           'ship',     sorted.filter(d => d.opType === 'Shipping'));
+  renderArchiveSection('Scheduling',       'sched',   sorted.filter(d => d.opType === 'Scheduling'));
+  renderArchiveSection('Prepress',         'prepress',sorted.filter(d => d.opType === 'Prepress'));
+  renderArchiveSection('Press',            'press',   sorted.filter(d => d.opType === 'Press'));
+  renderArchiveSection('Folding',          'fold',    sorted.filter(d => d.opType === 'Folding'));
+  renderArchiveSection('Bindery',          'bind',    sorted.filter(d => d.opType === 'Bindery'));
+  renderArchiveSection('Finishing',        'finish',  sorted.filter(d => d.opType === 'Finishing'));
+  renderArchiveSection('Mailing',          'mail',    sorted.filter(d => d.opType === 'Mailing'));
+  renderArchiveSection('Fulfillment',      'fulfill', sorted.filter(d => d.opType === 'Fulfillment'));
+  renderArchiveSection('Shipping/Inventory','ship',   sorted.filter(d => d.opType === 'Shipping/Inventory'));
 }
 
 function archSortBy(col) {
