@@ -189,7 +189,26 @@ select:focus, input:focus { border-color:var(--accent); background:#fff; }
 .toast { position:fixed; bottom:24px; right:24px; background:var(--accent2); color:#000; font-family:'Barlow',sans-serif; font-weight:700; font-size:.82rem; padding:10px 18px; border-radius:6px; opacity:0; transform:translateY(8px); transition:all .25s; pointer-events:none; z-index:999; }
 .toast.show { opacity:1; transform:translateY(0); }
 
-/* TIMER ALERTS */
+/* COLLAPSIBLE JOB CARDS */
+.jc-header {
+  display:flex; align-items:center; gap:10px;
+  padding:10px 14px; cursor:pointer;
+  user-select:none; transition:background .15s;
+}
+.jc-header:hover { background:rgba(0,0,0,.03); }
+.jc-toggle {
+  margin-left:auto; font-size:.75rem; color:var(--muted);
+  transition:transform .2s; flex-shrink:0;
+}
+.job-card.expanded .jc-toggle { transform:rotate(180deg); }
+.jc-body { display:none; padding:0 14px 14px; border-top:1px solid var(--border); }
+.job-card.expanded .jc-body { display:block; }
+.jc-pill {
+  font-size:.65rem; font-weight:700; letter-spacing:.07em;
+  text-transform:uppercase; padding:2px 8px; border-radius:20px;
+  border:1px solid currentColor; white-space:nowrap;
+}
+
 .btn-log-alert {
   width:100%; border:none; border-radius:6px; font-family:'Barlow',sans-serif;
   font-weight:700; letter-spacing:.07em; text-transform:uppercase; cursor:pointer;
@@ -306,8 +325,8 @@ select:focus, input:focus { border-color:var(--accent); background:#fff; }
 .btn-login:hover { background:var(--accent); color:#000; }
 .login-error { background:rgba(231,76,60,.1); border:1px solid rgba(231,76,60,.3); color:var(--red); border-radius:6px; padding:9px 14px; font-size:.78rem; font-weight:600; margin-top:12px; text-align:center; display:none; }
 .login-footer { text-align:center; margin-top:16px; font-size:.65rem; color:rgba(255,255,255,.3); letter-spacing:.06em; }
-.logout-btn { background:transparent; border:1px solid rgba(255,255,255,.2); border-radius:6px; color:rgba(255,255,255,.5); font-family:'Barlow',sans-serif; font-size:.68rem; font-weight:700; letter-spacing:.08em; text-transform:uppercase; padding:5px 12px; cursor:pointer; transition:all .2s; }
-.logout-btn:hover { border-color:var(--red); color:var(--red); }
+.logout-btn { background:#c0392b; border:1px solid #a93226; border-radius:6px; color:#fff; font-family:'Barlow',sans-serif; font-size:.68rem; font-weight:700; letter-spacing:.08em; text-transform:uppercase; padding:5px 12px; cursor:pointer; transition:background .2s; }
+.logout-btn:hover { background:#e74c3c; border-color:#e74c3c; }
 </style>
 
 </head>
@@ -1966,20 +1985,43 @@ function renderJobCard(j) {
   const badgeExtra  = mrOvertime ? 'mr-overtime-badge' : '';
   const progressBar = (j.status === 'production' && j.qty > 0) ? buildProgressBar(j.totalUnits, j.qty) : '';
 
-  return `<div class="job-card ${cardClass}">
+  // Status dot color per dept
+  const deptDotColor = {
+    'Scheduling':'#2ecc71','Prepress':'#9b59b6','Press':'#e74c3c',
+    'Folding':'#f0a500','Bindery':'#00c2a8','Finishing':'#1abc9c',
+    'Mailing':'#3498db','Fulfillment':'#e67e22','Shipping/Inventory':'#95a5a6'
+  }[j.opType] || '#888';
+
+  const statusDot = activeDT ? '#e74c3c' :
+    j.status === 'production' ? '#2ecc71' :
+    j.status === 'makeready'  ? '#f0a500' :
+    j.status === 'scheduled'  ? '#2ecc71' : '#95a5a6';
+
+  return `<div class="job-card ${cardClass}" id="card_${j.id}">
     <div class="jc-bar ${barClass}"></div>
+    <!-- Collapsed header — always visible, click to expand -->
+    <div class="jc-header" onclick="toggleCard('${j.id}')">
+      <div style="width:8px;height:8px;border-radius:50%;background:${statusDot};flex-shrink:0;box-shadow:0 0 5px ${statusDot};"></div>
+      <div style="font-weight:800;font-size:.88rem;color:var(--text);letter-spacing:.04em;">${j.jobNumber}</div>
+      ${j.customer ? `<div style="font-size:.72rem;color:var(--muted);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${j.customer}</div>` : `<div style="flex:1;"></div>`}
+      <span class="jc-pill" style="color:${deptDotColor};border-color:${deptDotColor};">${j.opType}</span>
+      <span class="stage-badge ${badgeCls} ${badgeExtra}" style="font-size:.6rem;padding:2px 7px;">${badgeLbl}</span>
+      <span class="jc-toggle">▼</span>
+    </div>
+    <!-- Expanded body — hidden by default -->
     <div class="jc-body">
-      <div class="jc-top">
-        <div><div class="jc-job">${j.jobNumber}</div><div class="jc-po">PO: ${j.poNumber||'—'}</div></div>
-        <span class="stage-badge ${badgeCls} ${badgeExtra}">${badgeLbl}</span>
-      </div>
       ${dtBanner}
-      <div class="jc-meta">${metaRows}</div>
+      <div class="jc-meta" style="margin-top:10px;">${metaRows}</div>
       ${progressBar}
       <hr class="jc-divider">
       <div class="jc-actions">${actions}</div>
     </div>
   </div>`;
+}
+
+function toggleCard(id) {
+  const card = document.getElementById('card_' + id);
+  if (card) card.classList.toggle('expanded');
 }
 
 
