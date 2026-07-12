@@ -716,6 +716,54 @@ select:focus, input:focus { border-color:var(--accent); background:#fff; }
   </div>
 </div>
 
+<!-- ═══ BEGIN NEXT OPERATION MODAL ═══ -->
+<div id="next_op_modal" class="modal-overlay hidden">
+  <div class="modal" style="max-width:440px;">
+    <div class="modal-title">➕ Begin Next Operation</div>
+    <div id="next_op_job_info" style="background:#f8f8f8;border-radius:6px;padding:10px 14px;margin-bottom:16px;font-size:.8rem;color:var(--muted);"></div>
+    <div style="margin-bottom:12px;">
+      <label style="display:block;font-size:.68rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:6px;">Department</label>
+      <select id="next_op_dept" onchange="onNextOpDeptChange()" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:6px;font-size:.9rem;">
+        <option value="">— Select Department —</option>
+        <option value="Prepress">Prepress</option>
+        <option value="Press">Press</option>
+        <option value="Folding">Folding</option>
+        <option value="Bindery">Bindery</option>
+        <option value="Finishing">Finishing</option>
+        <option value="Mailing">Mailing</option>
+        <option value="Fulfillment">Fulfillment</option>
+        <option value="Shipping/Inventory">Shipping/Inventory</option>
+      </select>
+    </div>
+    <div style="margin-bottom:12px;">
+      <label style="display:block;font-size:.68rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:6px;">Operation</label>
+      <select id="next_op_operation" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:6px;font-size:.9rem;">
+        <option value="">— Select Department First —</option>
+      </select>
+    </div>
+    <div style="margin-bottom:16px;">
+      <label style="display:block;font-size:.68rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:6px;">Assign Operator</label>
+      <select id="next_op_operator" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:6px;font-size:.9rem;">
+        <option value="">— Select Operator —</option>
+        <optgroup label="── Prepress ──">
+          <option>Aaron</option><option>Nate</option><option>Emma</option><option>Humberto</option>
+        </optgroup>
+        <optgroup label="── Press ──">
+          <option>Victor</option><option>Tony</option><option>Pepe</option>
+        </optgroup>
+        <optgroup label="── Bindery ──">
+          <option>Becky</option><option>Hector</option><option>Ruben</option>
+          <option>David</option><option>Leo</option><option>Paul</option>
+        </optgroup>
+      </select>
+    </div>
+    <div style="display:flex;gap:10px;">
+      <button class="btn btn-primary" style="flex:1;" onclick="confirmBeginNextOp()">▶ Begin Operation</button>
+      <button class="btn btn-secondary" onclick="document.getElementById('next_op_modal').classList.add('hidden')">Cancel</button>
+    </div>
+  </div>
+</div>
+
 <!-- ═══ MATERIAL REQUISITION MODAL ═══ -->
 <div id="mr_modal" class="modal-overlay hidden">
   <div class="modal" style="max-width:600px;">
@@ -948,18 +996,34 @@ function applyAccessControl() {
   const dept = currentUser.dept;
   const role = currentUser.role;
 
-  // Update header to show logged-in user name and role
+  // Show logged-in user in header
   const userTag = document.getElementById('user_tag');
-  if (userTag) {
-    userTag.textContent = currentUser.name + ' (' + role + ')';
-  }
+  if (userTag) userTag.textContent = currentUser.name + ' (' + role + ')';
 
-  // Admins, managers and prepress see everything
+  // Admins and managers see everything
   if (dept === 'all' || role === 'admin' || role === 'manager') return;
-  if (dept.includes('prepress')) return; // prepress sees all depts
 
-  // Operators — filter Active Jobs to their department only
-  // Hide department sections they don't have access to
+  // Hide + New Job tab for non-scheduling operators
+  // Only Scheduling creates new jobs — others use "Begin Next Operation" on the card
+  const isScheduling = dept.includes('scheduling');
+  document.querySelectorAll('.ntab').forEach(btn => {
+    if (btn.textContent.includes('New Job')) {
+      btn.style.display = isScheduling ? '' : 'none';
+    }
+    // Hide Dashboard, Archive and Job Report from pure operators
+    if (role === 'operator') {
+      if (btn.textContent.includes('Dashboard') ||
+          btn.textContent.includes('Archive')   ||
+          btn.textContent.includes('Job Report')) {
+        btn.style.display = 'none';
+      }
+    }
+  });
+
+  // Prepress sees all departments
+  if (dept.includes('prepress')) return;
+
+  // All other operators — only see their dept section in Active Jobs
   const deptSections = {
     scheduling:  'dept_sched_section',
     prepress:    'dept_prepress_section',
@@ -975,35 +1039,10 @@ function applyAccessControl() {
   Object.entries(deptSections).forEach(([key, id]) => {
     const el = document.getElementById(id);
     if (!el) return;
-    if (!dept.includes(key)) {
-      el.style.display = 'none';
-    }
+    // Always show Scheduling section so operators can see the master job card
+    if (key === 'scheduling') return;
+    if (!dept.includes(key)) el.style.display = 'none';
   });
-
-  // Restrict New Job form — pre-select their operation type
-  if (dept.length === 1) {
-    const opMap = {
-      scheduling:'Scheduling', prepress:'Prepress', press:'Press',
-      folding:'Folding', bindery:'Bindery', finishing:'Finishing',
-      mailing:'Mailing', fulfillment:'Fulfillment', shipping:'Shipping/Inventory'
-    };
-    const opType = opMap[dept[0]];
-    if (opType) {
-      setTimeout(() => {
-        const sel = document.getElementById('f_optype');
-        if (sel) { sel.value = opType; onOpChange(); }
-      }, 100);
-    }
-  }
-
-  // Hide dashboard and archive from pure operators
-  if (role === 'operator') {
-    document.querySelectorAll('.ntab').forEach(btn => {
-      if (btn.textContent.includes('Dashboard') || btn.textContent.includes('Archive')) {
-        btn.style.display = 'none';
-      }
-    });
-  }
 }
 
 function doLogout() {
@@ -1398,7 +1437,77 @@ function autoFillJobForm(data) {
 }
 
 
-function calcPressSheets() {
+// ── BEGIN NEXT OPERATION ──────────────────────────────────────
+let _nextOpMasterJobId = null;
+
+function beginNextOperation(masterJobId) {
+  _nextOpMasterJobId = masterJobId;
+  const job = getData().find(j => j.id === masterJobId);
+  if (!job) return;
+  document.getElementById('next_op_job_info').innerHTML =
+    `<strong>Job ${job.jobNumber}</strong> &nbsp;·&nbsp; ${job.customer||''}
+     &nbsp;·&nbsp; Qty: ${(job.qty||0).toLocaleString()}
+     &nbsp;·&nbsp; Due: ${job.dueDate||'—'}`;
+  document.getElementById('next_op_dept').value = '';
+  document.getElementById('next_op_operation').innerHTML = '<option value="">— Select Department First —</option>';
+  document.getElementById('next_op_operator').value = '';
+  document.getElementById('next_op_modal').classList.remove('hidden');
+}
+
+function onNextOpDeptChange() {
+  const dept = document.getElementById('next_op_dept').value;
+  const sel  = document.getElementById('next_op_operation');
+  sel.innerHTML = '<option value="">— Select Operation —</option>';
+  if (dept && MACHINES[dept]) {
+    MACHINES[dept].forEach(m => {
+      const o = document.createElement('option');
+      o.value = m; o.textContent = m; sel.appendChild(o);
+    });
+  }
+}
+
+function confirmBeginNextOp() {
+  const dept      = document.getElementById('next_op_dept').value;
+  const operation = document.getElementById('next_op_operation').value;
+  const operator  = document.getElementById('next_op_operator').value;
+  if (!dept || !operation || !operator) { toast('Please select Department, Operation and Operator'); return; }
+
+  const masterJob = getData().find(j => j.id === _nextOpMasterJobId);
+  if (!masterJob) return;
+
+  const now = localNow();
+  const linkedJob = {
+    id          : Date.now().toString(),
+    date        : now.slice(0, 10),
+    status      : 'makeready',
+    masterJobId : masterJob.id,
+    operator,
+    jobNumber   : masterJob.jobNumber,
+    poNumber    : masterJob.poNumber   || '',
+    opType      : dept,
+    machine     : operation,
+    qty         : masterJob.qty        || 0,
+    pressSheets : masterJob.pressSheets|| 0,
+    pages:0, forms:0, sigs:0,
+    paperSize   : masterJob.pressSize  || '',
+    paperType   : masterJob.paperWeight|| '',
+    colors:'', foldType:'',
+    mrStart     : now,
+    totalUnits:0, totalDT:0,
+    prodLogs:[], downtime:[],
+    mrHrs:0, prodHrs:0, netProdHrs:0, uph:0
+  };
+
+  const all = getData();
+  all.push(linkedJob);
+  setData(all);
+  document.getElementById('next_op_modal').classList.add('hidden');
+  _nextOpMasterJobId = null;
+  renderActiveJobs();
+  toast('✓ ' + dept + ' started for Job ' + masterJob.jobNumber + ' — assigned to ' + operator);
+}
+
+// ── PRESS SHEET CALCULATOR ────────────────────────────────────
   const qty     = parseInt(document.getElementById('f_qty').value) || 0;
   const upPress = parseInt(document.getElementById('f_up_on_press').value) || 1;
   const wastePct= parseFloat(document.getElementById('f_waste_pct').value) || 0;
@@ -1714,20 +1823,80 @@ function renderJobCard(j) {
 
   let metaRows = '', actions = '';
 
-  // ── SCHEDULED (Scheduling dept) ──────────────────────────────
+  // ── SCHEDULED (Scheduling dept — master job card) ────────────
   if (j.status === 'scheduled') {
-    const schedDate  = parseLocalTime(j.scheduledAt);
+    const schedDate   = parseLocalTime(j.scheduledAt);
     const elapsedDays = schedDate ? Math.floor((now - schedDate) / 86400000) : 0;
+
+    // Aggregate all linked records for this job number
+    const allRecords  = getData().filter(r => r.jobNumber === j.jobNumber && r.id !== j.id);
+    const totalMRHrs  = allRecords.reduce((s,r) => s + (r.mrHrs||0), 0);
+    const totalProdHrs= allRecords.reduce((s,r) => s + (r.netProdHrs||r.prodHrs||0), 0);
+    const totalUnitsA = allRecords.reduce((s,r) => s + (r.totalUnits||0), 0);
+    const totalDTHrs  = allRecords.reduce((s,r) => s + (r.totalDT||0), 0);
+    const activeRecs  = allRecords.filter(r => r.status !== 'complete');
+
+    // Build operations history table
+    const deptOrder = ['Prepress','Press','Folding','Bindery','Finishing','Mailing','Fulfillment','Shipping/Inventory'];
+    const completedDepts = allRecords.filter(r => r.status === 'complete').map(r => r.opType);
+    const activeDepts    = allRecords.filter(r => r.status !== 'complete').map(r => r.opType);
+
+    let historyRows = `
+      <div style="margin:8px 0 4px;font-size:.62rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);">Production Status</div>
+      <div style="font-size:.75rem;">
+        <div style="display:flex;align-items:center;gap:6px;padding:3px 0;border-bottom:1px solid #f0f0f0;">
+          <span style="color:var(--green);">✓</span>
+          <span style="flex:1;font-weight:600;">Scheduling</span>
+          <span style="color:var(--muted);">${j.operator}</span>
+          <span style="color:var(--muted);font-size:.68rem;">${j.date}</span>
+        </div>`;
+
+    deptOrder.forEach(dept => {
+      const rec = allRecords.filter(r => r.opType === dept);
+      if (!rec.length) {
+        historyRows += `
+        <div style="display:flex;align-items:center;gap:6px;padding:3px 0;border-bottom:1px solid #f0f0f0;color:#ccc;">
+          <span>○</span><span style="flex:1;">${dept}</span><span style="font-size:.68rem;">Pending</span>
+        </div>`;
+      } else {
+        rec.forEach(r => {
+          const isActive = r.status !== 'complete';
+          const icon = isActive ? '🔵' : '✓';
+          const color = isActive ? 'var(--accent)' : 'var(--green)';
+          historyRows += `
+          <div style="display:flex;align-items:center;gap:6px;padding:3px 0;border-bottom:1px solid #f0f0f0;">
+            <span style="color:${color};">${icon}</span>
+            <span style="flex:1;font-weight:600;color:${color};">${dept}</span>
+            <span style="color:var(--muted);">${r.operator||'—'}</span>
+            <span style="color:var(--muted);font-size:.68rem;">${isActive ? 'Active' : r.totalUnits ? r.totalUnits.toLocaleString()+' units' : r.netProdHrs ? r.netProdHrs.toFixed(1)+'hr' : 'Done'}</span>
+          </div>`;
+        });
+      }
+    });
+    historyRows += '</div>';
+
     metaRows = `
       <div class="jc-meta-item"><div class="jcm-lbl">Customer</div><div class="jcm-val">${j.customer||'—'}</div></div>
-      <div class="jc-meta-item"><div class="jcm-lbl">Due Date</div><div class="jcm-val">${j.dueDate||'—'}</div></div>
+      <div class="jc-meta-item"><div class="jcm-lbl">Due Date</div><div class="jcm-val" style="${j.dueDate && j.dueDate < localToday() ? 'color:var(--red);font-weight:700;':''}">${j.dueDate||'—'}</div></div>
       <div class="jc-meta-item"><div class="jcm-lbl">Process</div><div class="jcm-val">${j.printProcess||'—'}</div></div>
       <div class="jc-meta-item"><div class="jcm-lbl">Qty</div><div class="jcm-val mono">${(j.qty||0).toLocaleString()}</div></div>
       <div class="jc-meta-item"><div class="jcm-lbl">Press Sheets</div><div class="jcm-val mono">${(j.pressSheets||0).toLocaleString()}</div></div>
-      <div class="jc-meta-item"><div class="jcm-lbl">Days in Production</div><div class="jcm-val mono" style="${elapsedDays>5?'color:var(--red);font-weight:900;':''}">${elapsedDays} day${elapsedDays!==1?'s':''}</div></div>`;
+      <div class="jc-meta-item"><div class="jcm-lbl">Days Active</div><div class="jcm-val mono" style="${elapsedDays>5?'color:var(--red);font-weight:900;':''}">${elapsedDays} day${elapsedDays!==1?'s':''}</div></div>
+      ${totalProdHrs > 0 ? `
+      <div class="jc-meta-item"><div class="jcm-lbl">Total MR Hrs</div><div class="jcm-val mono">${totalMRHrs.toFixed(2)}</div></div>
+      <div class="jc-meta-item"><div class="jcm-lbl">Total Prod Hrs</div><div class="jcm-val mono">${totalProdHrs.toFixed(2)}</div></div>
+      <div class="jc-meta-item"><div class="jcm-lbl">Total Units</div><div class="jcm-val mono">${totalUnitsA.toLocaleString()}</div></div>
+      ${totalDTHrs > 0 ? `<div class="jc-meta-item"><div class="jcm-lbl">Total Downtime</div><div class="jcm-val mono" style="color:var(--red);">${totalDTHrs.toFixed(2)} hrs</div></div>` : ''}
+      ` : ''}`;
+
+    // Append history below meta rows
+    metaRows += `<div style="margin-top:8px;">${historyRows}</div>`;
+
+    const hasActive = activeRecs.length > 0;
     actions = `
-      <button class="btn btn-secondary btn-sm" onclick="openMR('${j.id}')">📋 Material Requisition</button>
-      <button class="btn btn-success btn-sm" onclick="markInvoiced('${j.id}')">✓ Mark Invoiced</button>`;
+      <button class="btn btn-secondary btn-sm" onclick="openMR('${j.id}')">📋 Material Req</button>
+      <button class="btn btn-primary btn-sm" onclick="beginNextOperation('${j.id}')"
+        style="flex:1;">➕ Begin Next Operation</button>`;
   } else
 
   if (j.status === 'makeready') {
@@ -2450,14 +2619,15 @@ function renderCharts(td) {
 
 // Mark job as invoiced (stops elapsed days clock for Scheduling)
 function markInvoiced(jobId) {
-  if (!confirm('Mark this job as Invoiced? This will stop the elapsed days counter.')) return;
+  if (!confirm('Mark this job as Invoiced? This will record the invoice date and stop the elapsed days counter.')) return;
   const all = getData();
   const job = all.find(j => j.id === jobId);
   if (!job) return;
-  job.status    = 'complete';
   job.invoicedAt = localNow();
+  // Keep status as 'complete' — job stays in Archive
+  if (job.status === 'scheduled') job.status = 'complete';
   setData(all);
-  renderActiveJobs();
+  renderArchive();
   toast('✓ Job ' + job.jobNumber + ' marked as Invoiced');
 }
 
@@ -2660,8 +2830,9 @@ function renderArchiveSection(opType, cls, rows) {
   const thClass = col => archSort.col === col
     ? (archSort.dir === 'asc' ? 'sort-asc' : 'sort-desc') : '';
 
-  const showColors  = opType === 'Printing';
+  const showColors  = opType === 'Press';
   const showFold    = opType === 'Folding';
+  const showSched   = opType === 'Scheduling';
 
   tableEl.innerHTML = `<table class="arch-table">
     <thead><tr>
@@ -2669,8 +2840,9 @@ function renderArchiveSection(opType, cls, rows) {
       <th class="${thClass('jobNumber')}"   onclick="archSortBy('jobNumber')">Job #</th>
       <th class="${thClass('poNumber')}"    onclick="archSortBy('poNumber')">PO #</th>
       <th class="${thClass('operator')}"    onclick="archSortBy('operator')">Operator</th>
-      <th class="${thClass('machine')}"     onclick="archSortBy('machine')">Machine</th>
+      <th class="${thClass('machine')}"     onclick="archSortBy('machine')">Operation</th>
       <th class="${thClass('qty')}"         onclick="archSortBy('qty')">Qty</th>
+      ${showSched ? `<th>Customer</th><th>Process</th><th>Days</th><th>Action</th>` : `
       <th class="${thClass('pages')}"       onclick="archSortBy('pages')">Pages</th>
       <th class="${thClass('sigs')}"        onclick="archSortBy('sigs')">Sigs</th>
       <th class="${thClass('paperSize')}"   onclick="archSortBy('paperSize')">Paper Size</th>
@@ -2682,10 +2854,33 @@ function renderArchiveSection(opType, cls, rows) {
       <th class="${thClass('totalUnits')}"  onclick="archSortBy('totalUnits')">Units</th>
       <th class="${thClass('uph')}"         onclick="archSortBy('uph')">U/hr</th>
       <th class="${thClass('totalDT')}"     onclick="archSortBy('totalDT')">DT hrs</th>
-      <th>DT Reasons</th>
+      <th>DT Reasons</th>`}
     </tr></thead>
     <tbody>
     ${rows.map(d => {
+      if (showSched) {
+        const schedDate   = d.scheduledAt ? new Date(d.scheduledAt.replace('T',' ')) : null;
+        const invoicedAt  = d.invoicedAt  ? new Date(d.invoicedAt.replace('T',' '))  : null;
+        const elapsed     = schedDate && invoicedAt
+          ? Math.floor((invoicedAt - schedDate) / 86400000)
+          : schedDate ? Math.floor((new Date() - schedDate) / 86400000) : '—';
+        const invoiced    = !!d.invoicedAt;
+        return `<tr>
+          <td class="mono">${d.date}</td>
+          <td><strong>${d.jobNumber||'—'}</strong></td>
+          <td class="mono">${d.poNumber||'—'}</td>
+          <td>${d.operator||'—'}</td>
+          <td><span class="arch-badge sched">${d.machine||'—'}</span></td>
+          <td class="mono">${d.qty ? d.qty.toLocaleString() : '—'}</td>
+          <td>${d.customer||'—'}</td>
+          <td>${d.printProcess||'—'}</td>
+          <td class="mono" style="${typeof elapsed==='number'&&elapsed>10?'color:var(--red);font-weight:700;':''}">${elapsed} day${elapsed!==1?'s':''}</td>
+          <td>${invoiced
+            ? `<span style="color:var(--green);font-weight:700;">✓ Invoiced ${d.invoicedAt.slice(0,10)}</span>`
+            : `<button class="btn btn-success btn-sm" onclick="markInvoiced('${d.id}')">✓ Mark Invoiced</button>`}
+          </td>
+        </tr>`;
+      }
       const dtReasons = d.downtime && d.downtime.length
         ? d.downtime.map(dt => dt.reason).filter(Boolean).join(', ')
         : '—';
@@ -2696,9 +2891,6 @@ function renderArchiveSection(opType, cls, rows) {
         <td>${d.operator||'—'}</td>
         <td><span class="arch-badge ${cls}">${d.machine||'—'}</span></td>
         <td class="mono">${d.qty ? d.qty.toLocaleString() : '—'}</td>
-        <td class="mono">${d.pages||'—'}</td>
-        <td class="mono">${d.sigs||'—'}</td>
-        <td>${d.paperSize||'—'}</td>
         <td>${d.paperType||'—'}</td>
         ${showColors ? `<td>${d.colors||'—'}</td>` : ''}
         ${showFold   ? `<td>${d.foldType||'—'}</td>` : ''}
