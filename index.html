@@ -2464,20 +2464,20 @@ function renderDashboard() {
 }
 
 function renderDeptSections(all, today, todayAll) {
-
-function renderDeptSections(all, today, todayAll) {
-  renderDeptCards('Scheduling',       'sched',   all, today);
-  renderDeptCards('Prepress',         'prepress',all, today);
-  renderDeptCards('Press',            'press',   all, today);
-  renderDeptCards('Folding',          'fold',    all, today);
-  renderDeptCards('Bindery',          'bind',    all, today);
-  renderDeptCards('Finishing',        'finish',  all, today);
-  renderDeptCards('Mailing',          'mail',    all, today);
-  renderDeptCards('Fulfillment',      'fulfill', all, today);
-  renderDeptCards('Shipping/Inventory','ship',   all, today);
+  renderDeptCards('Scheduling',        'sched',   all, today);
+  renderDeptCards('Prepress',          'prepress',all, today);
+  renderDeptCards('Press',             'press',   all, today);
+  renderDeptCards('Folding',           'fold',    all, today);
+  renderDeptCards('Bindery',           'bind',    all, today);
+  renderDeptCards('Finishing',         'finish',  all, today);
+  renderDeptCards('Mailing',           'mail',    all, today);
+  renderDeptCards('Fulfillment',       'fulfill', all, today);
+  renderDeptCards('Shipping/Inventory','ship',    all, today);
   renderCharts(todayAll);
   document.getElementById('refresh_lbl').textContent = 'Last updated: ' + new Date().toLocaleTimeString();
 }
+
+function getMachineStatus(machine, all, today) {
   // Check active (non-complete) jobs first — they are live right now
   const activeJob = all.find(d => d.machine === machine && d.status !== 'complete');
   if (activeJob) {
