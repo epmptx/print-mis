@@ -128,7 +128,14 @@ select:focus, input:focus { border-color:var(--accent); background:#fff; }
 .dept-dot { width:10px; height:10px; border-radius:50%; }
 .dept-title { font-size:.72rem; font-weight:900; letter-spacing:.14em; text-transform:uppercase; }
 .dept-count { font-size:.65rem; color:var(--muted); font-weight:600; }
-.machine-cards { display:grid; grid-template-columns:repeat(auto-fill,minmax(175px,1fr)); gap:10px; margin-bottom:8px; }
+.machine-cards { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:8px; }
+.mcard { position:relative; background:var(--panel); border:1px solid var(--border); border-radius:8px; overflow:hidden; }
+.mcard-header { display:flex; align-items:center; gap:8px; padding:10px 12px; cursor:pointer; user-select:none; }
+.mcard-header:hover { background:rgba(0,0,0,.03); }
+.mcard-toggle { margin-left:auto; font-size:.7rem; color:var(--muted); transition:transform .2s; }
+.mcard.mc-expanded .mcard-toggle { transform:rotate(180deg); }
+.mcard-body { display:none; padding:0 12px 10px; border-top:1px solid var(--border); }
+.mcard.mc-expanded .mcard-body { display:block; }
 .mcard { background:var(--panel); border:1px solid var(--border); border-radius:8px; padding:13px; position:relative; overflow:hidden; }
 .mcard::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; }
 .mcard.press::before { background:var(--press); }
@@ -818,14 +825,6 @@ select:focus, input:focus { border-color:var(--accent); background:#fff; }
   <div class="machine-cards" id="cards_finish"></div>
   <div class="dept-header"><div class="dept-dot" style="background:#3498db"></div><div class="dept-title">Mailing</div><div class="dept-count" id="cnt_mail"></div></div>
   <div class="machine-cards" id="cards_mail"></div>
-  <div class="dept-header"><div class="dept-dot" style="background:#e67e22"></div><div class="dept-title">Fulfillment</div><div class="dept-count" id="cnt_fulfill"></div></div>
-  <div class="machine-cards" id="cards_fulfill"></div>
-  <div class="dept-header"><div class="dept-dot" style="background:var(--gray)"></div><div class="dept-title">Shipping/Inventory</div><div class="dept-count" id="cnt_ship"></div></div>
-  <div class="machine-cards" id="cards_ship"></div>
-  <div class="charts-grid">
-    <div class="chart-wrap"><div class="panel-title">Units / hr — Today</div><canvas id="c_uph"></canvas></div>
-    <div class="chart-wrap"><div class="panel-title">Total Units — Today</div><canvas id="c_units"></canvas></div>
-  </div>
 </div>
 
 <!-- ═══ ARCHIVE ═══ -->
@@ -1796,10 +1795,22 @@ function renderActiveJobs() {
     { key:'ship',    label:'Shipping/Inventory',opType:'Shipping/Inventory',machines: MACHINES['Shipping/Inventory'] }
   ];
 
+  // Hide Scheduling master card when a linked operation is active in another dept
+  const activeLinkedJobIds = new Set(
+    active.filter(r => r.masterJobId).map(r => r.masterJobId)
+  );
+
   depts.forEach(dept => {
-    const deptJobs = active.filter(j => j.opType === dept.opType);
+    let deptJobs = active.filter(j => j.opType === dept.opType);
+
+    // For Scheduling: hide master card if job is currently active in another dept
+    if (dept.key === 'sched') {
+      deptJobs = deptJobs.filter(j => !activeLinkedJobIds.has(j.id));
+    }
+
     const countEl  = document.getElementById('dept_' + dept.key + '_count');
     const listEl   = document.getElementById('dept_' + dept.key + '_list');
+    if (!countEl || !listEl) return;
 
     countEl.textContent = deptJobs.length
       ? deptJobs.length + ' active job' + (deptJobs.length !== 1 ? 's' : '')
@@ -2372,13 +2383,16 @@ function renderDashboard() {
   const avgUph     = complete.length ? Math.round(complete.reduce((s,d)=>s+(d.uph||0),0)/complete.length) : 0;
   const totalDT    = todayAll.reduce((s,d) => s + (d.totalDT||0), 0);
 
-  // ── Top summary strip ───────────────────────────────────────
+  // Active jobs, makeready count, downtime count
+  const makereadyCount = all.filter(d => d.status === 'makeready').length;
+  const downtimeCount  = all.filter(d =>
+    d.downtime && d.downtime.some(dt => dt.start && !dt.stop)
+  ).length;
+
   let summaryHtml = `
-    <div class="sc"><div class="sc-val" style="color:var(--fold)">${activeJobs.length}</div><div class="sc-lbl">Active Jobs</div></div>
-    <div class="sc"><div class="sc-val">${todayAll.length}</div><div class="sc-lbl">Jobs Today</div></div>
-    <div class="sc"><div class="sc-val">${totalUnits.toLocaleString()}</div><div class="sc-lbl">Units Today</div></div>
-    <div class="sc"><div class="sc-val">${avgUph || '—'}</div><div class="sc-lbl">Avg U/hr</div></div>
-    <div class="sc"><div class="sc-val" style="${totalDT>1?'color:var(--red)':''}">${totalDT.toFixed(1)}</div><div class="sc-lbl">Downtime hrs</div></div>`;
+    <div class="sc"><div class="sc-val" style="color:var(--green)">${activeJobs.length}</div><div class="sc-lbl">Active Jobs</div></div>
+    <div class="sc"><div class="sc-val" style="color:var(--fold)">${makereadyCount}</div><div class="sc-lbl">In Make Ready</div></div>
+    <div class="sc"><div class="sc-val" style="${downtimeCount>0?'color:var(--red)':'color:var(--muted)'}">${downtimeCount}</div><div class="sc-lbl">Machines Down</div></div>`;
   document.getElementById('dash_summary').innerHTML = summaryHtml;
 
   // ── Departmental Report (managers/admins only) ───────────────
@@ -2507,16 +2521,13 @@ function renderDashboard() {
 }
 
 function renderDeptSections(all, today, todayAll) {
-  renderDeptCards('Scheduling',        'sched',   all, today);
-  renderDeptCards('Prepress',          'prepress',all, today);
-  renderDeptCards('Press',             'press',   all, today);
-  renderDeptCards('Folding',           'fold',    all, today);
-  renderDeptCards('Bindery',           'bind',    all, today);
-  renderDeptCards('Finishing',         'finish',  all, today);
-  renderDeptCards('Mailing',           'mail',    all, today);
-  renderDeptCards('Fulfillment',       'fulfill', all, today);
-  renderDeptCards('Shipping/Inventory','ship',    all, today);
-  renderCharts(todayAll);
+  renderDeptCards('Scheduling', 'sched',   all, today);
+  renderDeptCards('Prepress',   'prepress',all, today);
+  renderDeptCards('Press',      'press',   all, today);
+  renderDeptCards('Folding',    'fold',    all, today);
+  renderDeptCards('Bindery',    'bind',    all, today);
+  renderDeptCards('Finishing',  'finish',  all, today);
+  renderDeptCards('Mailing',    'mail',    all, today);
   document.getElementById('refresh_lbl').textContent = 'Last updated: ' + new Date().toLocaleTimeString();
 }
 
@@ -2547,118 +2558,116 @@ function getTrend(machine, all, today) {
 }
 
 function renderDeptCards(opType, cls, all, today) {
-  const machines = MACHINES[opType];
+  const machines   = MACHINES[opType] || [];
+  const isPrepress = opType === 'Prepress';
+  const now        = new Date();
 
-  // Count machines that have ANY job today (complete or active)
-  const active = machines.filter(m =>
-    all.some(d => d.machine === m && (d.date === today || d.status !== 'complete'))
+  // Count active
+  const activeCount = machines.filter(m =>
+    all.some(d => d.machine === m && d.status !== 'complete')
   ).length;
-  document.getElementById('cnt_'+cls).textContent = active+' of '+machines.length+' active';
+  const cntEl = document.getElementById('cnt_' + cls);
+  if (cntEl) cntEl.textContent = activeCount + ' of ' + machines.length + ' active';
+
+  const container = document.getElementById('cards_' + cls);
+  if (!container) return;
 
   const S = {
-    run:  { cls:'s-run',  lbl:'Running' },
-    mr:   { cls:'s-mr',   lbl:'Make Ready' },
-    down: { cls:'s-down', lbl:'Down' },
-    idle: { cls:'s-idle', lbl:'Idle' }
+    run:  { cls:'s-run',  lbl:'Running',    dot:'#2ecc71' },
+    mr:   { cls:'s-mr',   lbl:'Make Ready', dot:'#f0a500' },
+    down: { cls:'s-down', lbl:'Down',       dot:'#e74c3c' },
+    idle: { cls:'s-idle', lbl:'Idle',       dot:'#aaaaaa' }
   };
 
-  document.getElementById('cards_'+cls).innerHTML = machines.map(m => {
-    // All jobs for this machine today (complete or still active)
-    const allRows = all.filter(d => d.machine === m && (d.date === today || d.status !== 'complete'));
-    const compRows = allRows.filter(d => d.status === 'complete');
-    const activeJob = all.find(d => d.machine === m && d.status !== 'complete');
+  container.innerHTML = machines.map((m, idx) => {
+    const allRows  = all.filter(d => d.machine === m && (d.date === today || d.status !== 'complete'));
+    const activeJob= all.find(d => d.machine === m && d.status !== 'complete');
+    const s        = S[getMachineStatus(m, all, today)];
+    const cardId   = 'mcard_' + cls + '_' + idx;
 
-    // Avg UPH — only from completed jobs that have valid UPH (exclude 0s)
-    const validComp = compRows.filter(d => d.uph > 0);
-    const avg = validComp.length
-      ? Math.round(validComp.reduce((s,d) => s + d.uph, 0) / validComp.length)
+    if (isPrepress) {
+      // ── Prepress: simplified — job number, operator, elapsed time only ──
+      const activeJobs = allRows.filter(d => d.status !== 'complete');
+      const jobList = activeJobs.length
+        ? activeJobs.map(j => {
+            const start   = j.mrStart ? parseLocalTime(j.mrStart) : null;
+            const elapsed = start ? Math.floor((now - start) / 60000) : 0;
+            const dispEl  = elapsed >= 60
+              ? (elapsed/60).toFixed(1) + ' hrs'
+              : elapsed + ' min';
+            return `<div style="display:flex;justify-content:space-between;align-items:center;
+              padding:5px 0;border-bottom:1px solid #f0f0f0;font-size:.75rem;">
+              <span style="font-weight:700;">${j.jobNumber}</span>
+              <span style="color:var(--muted);">${j.operator||'—'}</span>
+              <span style="font-family:monospace;color:var(--accent);">${dispEl}</span>
+            </div>`;
+          }).join('')
+        : `<div style="font-size:.72rem;color:var(--muted);padding:8px 0;text-align:center;">No active jobs</div>`;
+
+      return `<div class="mcard ${cls}" id="${cardId}">
+        <div class="mcard-header" onclick="toggleMCard('${cardId}')">
+          <span style="width:8px;height:8px;border-radius:50%;background:${s.dot};flex-shrink:0;display:inline-block;"></span>
+          <span class="mcard-name" style="margin:0;font-size:.78rem;">${m}</span>
+          ${activeJobs.length ? `<span style="background:var(--green);color:#fff;font-size:.6rem;font-weight:700;padding:1px 6px;border-radius:10px;">${activeJobs.length}</span>` : ''}
+          <span class="mcard-toggle">▼</span>
+        </div>
+        <div class="mcard-body" style="padding:6px 12px 10px;">
+          ${jobList}
+        </div>
+      </div>`;
+    }
+
+    // ── Standard dept card ──
+    const tot   = allRows.reduce((s,d) => s + (d.totalUnits||0), 0);
+    const last  = activeJob || (allRows.length ? allRows[allRows.length-1] : null);
+    const validComp = allRows.filter(d => d.status==='complete' && d.uph>0);
+    const avg   = validComp.length
+      ? Math.round(validComp.reduce((s,d)=>s+d.uph,0)/validComp.length)
       : null;
-    const tot  = allRows.reduce((s,d) => s + d.totalUnits, 0);
-    const last = activeJob || (allRows.length ? allRows[allRows.length-1] : null);
 
-    // Live units/hr — calculated from prodStart to last log entry time (not wall clock)
     let liveUph = null;
-    if (activeJob && activeJob.status === 'production' && activeJob.prodStart && activeJob.totalUnits > 0) {
+    if (activeJob && activeJob.status==='production' && activeJob.prodStart && activeJob.totalUnits>0) {
       const logs = activeJob.prodLogs || [];
-      // Use last log time if available, otherwise use current time
-      const endTime   = logs.length > 0
-        ? new Date(logs[logs.length - 1].time)
-        : new Date();
-      const startTime = new Date(activeJob.prodStart);
-      const elapsedHrs = (endTime - startTime) / 3600000;
-      if (elapsedHrs > 0) {
-        const netHrs = Math.max(0.01, elapsedHrs - (activeJob.totalDT || 0));
-        liveUph = Math.round(activeJob.totalUnits / netHrs);
-      }
+      const endTime   = logs.length > 0 ? new Date(logs[logs.length-1].time) : new Date();
+      const elapsedHrs = (endTime - new Date(activeJob.prodStart)) / 3600000;
+      if (elapsedHrs > 0) liveUph = Math.round(activeJob.totalUnits / Math.max(0.01, elapsedHrs - (activeJob.totalDT||0)));
     }
 
     const displayUph = liveUph !== null ? liveUph : avg;
     const uphColor   = liveUph !== null ? 'color:var(--green)' : '';
-    const uphLabel   = liveUph !== null ? 'live units / hr' : 'avg u/hr (completed)';
-
-    const s     = S[getMachineStatus(m, all, today)];
-    const trend = getTrend(m, all, today);
-
-    const trendHtml = (trend==='down' && liveUph===null)
-      ? '<span class="trend-down">▼ Trending Down</span>'
-      : (trend==='up' && liveUph===null)
-      ? '<span class="trend-up">▲ Trending Up</span>'
-      : '';
-
-    const uphHtml = displayUph !== null
-      ? `<div style="display:flex;align-items:baseline;gap:6px;flex-wrap:wrap;">
-           <div class="mcard-uph" style="${uphColor}">${displayUph}</div>${trendHtml}
-         </div>`
-      : `<div class="mcard-uph" style="color:var(--muted);font-size:1rem;">${activeJob ? 'Logging…' : '—'}</div>`;
-
-    const dashProgress = (activeJob && activeJob.status === 'production' && activeJob.qty > 0)
+    const dashProg   = (activeJob && activeJob.status==='production' && activeJob.qty>0)
       ? buildProgressBar(activeJob.totalUnits, activeJob.qty) : '';
 
-    return `<div class="mcard ${cls}">
-      <div class="mcard-name">${m}</div>
-      <div class="mcard-status ${s.cls}"><span class="sdot"></span>${s.lbl}</div>
-      ${uphHtml}
-      <div class="mcard-sub">${uphLabel}</div>
-      <hr class="mcard-divider">
-      <div class="mcard-row"><span class="mrl">Jobs Today</span><span class="mrv">${allRows.length}</span></div>
-      <div class="mcard-row"><span class="mrl">Units Logged</span><span class="mrv">${tot.toLocaleString()}</span></div>
-      <div class="mcard-row"><span class="mrl">Current Job</span><span class="mrv">${last?last.jobNumber:'—'}</span></div>
-      <div class="mcard-row"><span class="mrl">Operator</span><span class="mrv">${last?last.operator:'—'}</span></div>
-      ${dashProgress}
+    return `<div class="mcard ${cls}" id="${cardId}">
+      <div class="mcard-header" onclick="toggleMCard('${cardId}')">
+        <span style="width:8px;height:8px;border-radius:50%;background:${s.dot};flex-shrink:0;display:inline-block;${s.cls==='s-run'?'box-shadow:0 0 5px '+s.dot+';':''}"></span>
+        <span class="mcard-name" style="margin:0;font-size:.76rem;flex:1;">${m}</span>
+        <span class="mcard-status ${s.cls}" style="font-size:.6rem;padding:2px 7px;">${s.lbl}</span>
+        <span class="mcard-toggle">▼</span>
+      </div>
+      <div class="mcard-body">
+        ${displayUph !== null
+          ? `<div style="display:flex;align-items:baseline;gap:4px;margin:8px 0 2px;">
+               <div class="mcard-uph" style="${uphColor};font-size:1.3rem;">${displayUph}</div>
+               <div style="font-size:.65rem;color:var(--muted);">${liveUph!==null?'live u/hr':'avg u/hr'}</div>
+             </div>`
+          : `<div style="color:var(--muted);font-size:.78rem;padding:8px 0;">${activeJob?'Logging…':'No data today'}</div>`}
+        ${dashProg}
+        <hr class="mcard-divider">
+        <div class="mcard-row"><span class="mrl">Job #</span><span class="mrv">${last?last.jobNumber:'—'}</span></div>
+        <div class="mcard-row"><span class="mrl">Operator</span><span class="mrv">${last?last.operator:'—'}</span></div>
+        <div class="mcard-row"><span class="mrl">Jobs Today</span><span class="mrv">${allRows.length}</span></div>
+        <div class="mcard-row"><span class="mrl">Units Today</span><span class="mrv">${tot.toLocaleString()}</span></div>
+      </div>
     </div>`;
   }).join('');
 }
 
-function renderCharts(td) {
-  const deptColors = {
-    'Scheduling':       '#2ecc71',
-    'Prepress':         '#9b59b6',
-    'Press':            '#e74c3c',
-    'Folding':          '#f0a500',
-    'Bindery':          '#00c2a8',
-    'Finishing':        '#1abc9c',
-    'Mailing':          '#3498db',
-    'Fulfillment':      '#e67e22',
-    'Shipping/Inventory':'#95a5a6'
-  };
-  const allItems  = Object.keys(MACHINES).flatMap(d => MACHINES[d].map(m => ({ dept:d, machine:m })));
-  const labels    = allItems.map(x => x.machine.length > 11 ? x.machine.slice(0,11)+'…' : x.machine);
-  const clrs      = allItems.map(x => deptColors[x.dept] || '#888');
-  const complete  = td.filter(d => d.status === 'complete' && d.uph > 0);
-  const uph       = allItems.map(x => {
-    const r = complete.filter(d => d.machine === x.machine);
-    return r.length ? Math.round(r.reduce((s,d)=>s+d.uph,0)/r.length) : 0;
-  });
-  const units = allItems.map(x => td.filter(d => d.machine === x.machine).reduce((s,d)=>s+d.totalUnits,0));
-  const opts  = { responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{ x:{ticks:{color:'#888',font:{size:9},maxRotation:45},grid:{color:'#eee'}}, y:{ticks:{color:'#888',font:{size:10}},grid:{color:'#eee'},beginAtZero:true} } };
-  const mk = (id, data, existing) => {
-    const ctx = document.getElementById(id).getContext('2d');
-    if (existing) existing.destroy();
-    return new Chart(ctx,{type:'bar',data:{labels,datasets:[{data,backgroundColor:clrs.map(c=>c+'bb'),borderColor:clrs,borderWidth:1,borderRadius:4}]},options:{...opts}});
-  };
-  chartUph   = mk('c_uph',   uph,   chartUph);
-  chartUnits = mk('c_units', units, chartUnits);
+function toggleMCard(id) {
+  const el = document.getElementById(id);
+  if (el) el.classList.toggle('mc-expanded');
 }
+
 
 // Mark job as invoiced (stops elapsed days clock for Scheduling)
 function markInvoiced(jobId) {
