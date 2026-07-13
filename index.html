@@ -367,9 +367,15 @@ select:focus, input:focus { border-color:var(--accent); background:#fff; }
     </div>
     <div class="login-field">
       <label>Password</label>
-      <input type="password" id="login_pass" placeholder="Enter password"
-        autocomplete="current-password"
-        onkeydown="if(event.key==='Enter') doLogin()">
+      <div style="position:relative;">
+        <input type="password" id="login_pass" placeholder="Enter password"
+          autocomplete="current-password"
+          style="width:100%;padding-right:44px;"
+          onkeydown="if(event.key==='Enter') doLogin()">
+        <button onclick="togglePasswordView(this)" type="button"
+          style="position:absolute;right:0;top:0;bottom:0;width:40px;background:none;border:none;cursor:pointer;color:var(--muted);font-size:1rem;"
+          title="Show / hide password">👁</button>
+      </div>
     </div>
     <button class="btn-login" onclick="doLogin()">Sign In</button>
     <div class="login-error" id="login_error">Incorrect username or password. Try again.</div>
@@ -1119,6 +1125,14 @@ const DEPT_MAP = {
 };
 
 let currentUser = null;
+
+function togglePasswordView(btn) {
+  const input = document.getElementById('login_pass');
+  const show  = input.type === 'password';
+  input.type  = show ? 'text' : 'password';
+  btn.textContent = show ? '🙈' : '👁';
+  btn.title = show ? 'Hide password' : 'Show password';
+}
 
 function doLogin() {
   const username = document.getElementById('login_user').value.trim().toLowerCase();
