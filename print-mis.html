@@ -1,0 +1,3153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Print MIS</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow:wght@400;600;700;900&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js" defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsqr/1.4.0/jsQR.min.js" defer></script>
+<script src="https://unpkg.com/@zxing/library@0.18.6/umd/index.min.js" defer></script>
+<style>
+:root {
+  --bg:#f0f0f0; --panel:#fff; --border:#d8d8d8;
+  --accent:#f0a500; --accent2:#00c2a8;
+  --press:#e74c3c; --fold:#f0a500; --bind:#00c2a8;
+  --text:#1a1a1a; --muted:#777;
+  --green:#27ae60; --yellow:#e67e22; --red:#e74c3c; --gray:#95a5a6;
+  --dark:#1a1a2e;
+}
+* { box-sizing:border-box; margin:0; padding:0; }
+body { background:var(--bg); color:var(--text); font-family:'Barlow',sans-serif; min-height:100vh; }
+
+/* HEADER */
+header { background:var(--dark); padding:0 28px; display:flex; align-items:center; justify-content:space-between; height:62px; position:sticky; top:0; z-index:200; box-shadow:0 2px 10px rgba(0,0,0,0.35); }
+.hdr-left { display:flex; align-items:center; gap:18px; }
+header h1 { font-size:1.1rem; font-weight:900; letter-spacing:.1em; text-transform:uppercase; color:var(--accent); }
+#clock { font-family:'Share Tech Mono',monospace; font-size:.75rem; color:rgba(255,255,255,.4); }
+.tab-nav { display:flex; gap:5px; }
+.ntab { background:#2980b9; border:1px solid #2471a3; border-radius:6px; color:#fff; font-family:'Barlow',sans-serif; font-size:.73rem; font-weight:700; letter-spacing:.08em; text-transform:uppercase; padding:7px 16px; cursor:pointer; transition:all .2s; }
+.ntab.active { background:var(--accent); border-color:var(--accent); color:#000; }
+.ntab:hover:not(.active) { background:#3498db; border-color:#3498db; color:#fff; }
+
+/* LAYOUT */
+.content { padding:24px; max-width:1300px; margin:0 auto; }
+.hidden { display:none !important; }
+
+/* VIEW HEADER */
+.view-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; }
+.view-title { font-size:1rem; font-weight:900; letter-spacing:.06em; text-transform:uppercase; }
+.view-subtitle { font-size:.75rem; color:var(--muted); font-weight:600; }
+
+/* BUTTONS */
+.btn { border:none; border-radius:6px; font-family:'Barlow',sans-serif; font-weight:700; letter-spacing:.07em; text-transform:uppercase; cursor:pointer; transition:all .18s; }
+.btn-primary { background:var(--dark); color:#fff; padding:9px 18px; font-size:.78rem; }
+.btn-primary:hover { background:var(--accent); color:#000; }
+.btn-secondary { background:#f0f0f0; color:var(--muted); border:1px solid var(--border); padding:8px 14px; font-size:.72rem; }
+.btn-secondary:hover { border-color:var(--accent); color:var(--accent); }
+.btn-danger { background:rgba(231,76,60,.1); color:var(--red); border:1px solid rgba(231,76,60,.3); padding:8px 14px; font-size:.72rem; }
+.btn-success { background:var(--green); color:#fff; padding:9px 18px; font-size:.78rem; }
+.btn-success:hover { opacity:.88; }
+.btn-sm { padding:6px 12px; font-size:.68rem; }
+.btn-new { background:var(--accent); color:#000; padding:9px 20px; font-size:.78rem; }
+
+/* JOB CARDS */
+.jobs-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(320px,1fr)); gap:16px; }
+.job-card { background:var(--panel); border:1px solid var(--border); border-radius:10px; overflow:hidden; transition:box-shadow .2s; }
+.job-card:hover { box-shadow:0 3px 14px rgba(0,0,0,.1); }
+.jc-bar { height:4px; }
+.jc-bar.setup      { background:#8e9ec4; }
+.jc-bar.makeready  { background:var(--yellow); }
+.jc-bar.production { background:var(--green); }
+.jc-bar.complete   { background:var(--accent2); }
+.jc-bar.down-active { background:var(--red); animation:flash 1s infinite; }
+.stage-badge.down  { background:rgba(231,76,60,.15); color:var(--red); }
+.jc-body { padding:14px 16px; }
+.jc-top { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:10px; }
+.jc-job { font-size:1rem; font-weight:900; letter-spacing:.04em; }
+.jc-po  { font-size:.72rem; color:var(--muted); margin-top:2px; }
+.stage-badge { font-size:.62rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase; padding:4px 10px; border-radius:20px; white-space:nowrap; }
+.stage-badge.setup      { background:#e8ecf5; color:#5a6a8a; }
+.stage-badge.makeready  { background:rgba(230,126,34,.12); color:var(--yellow); }
+.stage-badge.production { background:rgba(39,174,96,.12); color:var(--green); }
+.stage-badge.complete   { background:rgba(0,194,168,.12); color:var(--accent2); }
+.jc-meta { display:grid; grid-template-columns:1fr 1fr; gap:4px 12px; margin-bottom:12px; }
+.jc-meta-item { display:flex; flex-direction:column; }
+.jcm-lbl { font-size:.58rem; font-weight:700; letter-spacing:.09em; text-transform:uppercase; color:var(--muted); }
+.jcm-val { font-size:.82rem; font-weight:600; color:var(--text); margin-top:1px; }
+.jcm-val.mono { font-family:'Share Tech Mono',monospace; color:var(--accent); }
+.jc-divider { border:none; border-top:1px solid var(--border); margin:10px 0; }
+.jc-actions { display:flex; gap:8px; flex-wrap:wrap; }
+.jc-timer { font-family:'Share Tech Mono',monospace; font-size:.72rem; color:var(--muted); text-align:right; margin-top:4px; }
+
+/* PROD LOG LIST */
+.prod-log { margin:8px 0; }
+.prod-log-row { display:flex; justify-content:space-between; padding:5px 0; border-bottom:1px solid #f0f0f0; font-size:.78rem; }
+.prod-log-row:last-child { border-bottom:none; }
+
+/* EMPTY STATE */
+.empty-state { text-align:center; padding:60px 20px; color:var(--muted); }
+.empty-icon { font-size:2.5rem; margin-bottom:12px; }
+.empty-msg { font-size:.9rem; font-weight:600; }
+.empty-sub { font-size:.78rem; margin-top:6px; }
+
+/* FORM */
+.form-grid { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+@media(max-width:900px){ .form-grid{grid-template-columns:1fr;} }
+.panel { background:var(--panel); border:1px solid var(--border); border-radius:8px; overflow:hidden; margin-bottom:16px; }
+.panel-title { background:var(--dark); color:#fff; padding:9px 18px; font-size:.62rem; font-weight:700; letter-spacing:.18em; text-transform:uppercase; }
+.panel-body { padding:16px 18px 18px; }
+.sec-lbl { font-size:.6rem; font-weight:700; letter-spacing:.16em; text-transform:uppercase; color:var(--accent); border-bottom:1px solid var(--border); padding-bottom:5px; margin:14px 0 4px; }
+.sec-lbl:first-child { margin-top:0; }
+label { display:block; font-size:.66rem; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); margin:10px 0 4px; }
+select, input[type=text], input[type=number], input[type=datetime-local] { width:100%; background:#f8f8f8; border:1px solid var(--border); border-radius:6px; color:var(--text); font-family:'Barlow',sans-serif; font-size:.88rem; padding:9px 12px; outline:none; transition:border-color .2s; }
+select:focus, input:focus { border-color:var(--accent); background:#fff; }
+.row-2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+
+/* MODAL */
+.modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:500; display:flex; align-items:center; justify-content:center; padding:20px; }
+.modal-box { background:#fff; border-radius:10px; width:100%; max-width:480px; max-height:90vh; overflow-y:auto; box-shadow:0 8px 40px rgba(0,0,0,.25); }
+.modal-header { background:var(--dark); color:#fff; padding:14px 20px; display:flex; align-items:center; justify-content:space-between; border-radius:10px 10px 0 0; }
+.modal-title { font-size:.78rem; font-weight:700; letter-spacing:.12em; text-transform:uppercase; }
+.modal-close { background:transparent; border:none; color:rgba(255,255,255,.6); font-size:1.2rem; cursor:pointer; padding:0 4px; }
+.modal-close:hover { color:#fff; }
+.modal-body { padding:20px; }
+.modal-footer { padding:14px 20px; border-top:1px solid var(--border); display:flex; gap:10px; justify-content:flex-end; }
+.auto-field { background:rgba(240,165,0,.07); border:1px solid rgba(240,165,0,.25); border-radius:6px; padding:8px 12px; margin-top:8px; }
+.af-lbl { font-size:.58rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); }
+.af-val { font-family:'Share Tech Mono',monospace; font-size:.95rem; color:var(--accent); margin-top:2px; }
+.auto-row { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+
+/* DASHBOARD */
+.dash-summary { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:24px; }
+@media(max-width:700px){ .dash-summary{grid-template-columns:repeat(2,1fr);} }
+.sc { background:var(--panel); border:1px solid var(--border); border-radius:8px; padding:16px; text-align:center; }
+.sc-val { font-family:'Share Tech Mono',monospace; font-size:2rem; line-height:1; }
+.sc-lbl { font-size:.58rem; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); margin-top:5px; }
+.dept-header { display:flex; align-items:center; gap:10px; margin-bottom:12px; margin-top:20px; }
+.dept-dot { width:10px; height:10px; border-radius:50%; }
+.dept-title { font-size:.72rem; font-weight:900; letter-spacing:.14em; text-transform:uppercase; }
+.dept-count { font-size:.65rem; color:var(--muted); font-weight:600; }
+.machine-cards { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:8px; }
+.mcard { position:relative; background:var(--panel); border:1px solid var(--border); border-radius:8px; overflow:hidden; }
+.mcard-header { display:flex; align-items:center; gap:8px; padding:10px 12px; cursor:pointer; user-select:none; }
+.mcard-header:hover { background:rgba(0,0,0,.03); }
+.mcard-toggle { margin-left:auto; font-size:.7rem; color:var(--muted); transition:transform .2s; }
+.mcard.mc-expanded .mcard-toggle { transform:rotate(180deg); }
+.mcard-body { display:none; padding:0 12px 10px; border-top:1px solid var(--border); }
+.mcard.mc-expanded .mcard-body { display:block; }
+.mcard { background:var(--panel); border:1px solid var(--border); border-radius:8px; padding:13px; position:relative; overflow:hidden; }
+.mcard::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; }
+.mcard.press::before { background:var(--press); }
+.mcard.fold::before  { background:var(--fold); }
+.mcard.bind::before  { background:var(--bind); }
+.mcard-name { font-size:.6rem; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--muted); margin-bottom:6px; }
+.mcard-status { display:inline-flex; align-items:center; gap:6px; font-size:.68rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; margin-bottom:7px; padding:4px 10px; border-radius:20px; }
+.sdot { width:9px; height:9px; border-radius:50%; flex-shrink:0; }
+
+/* Running — green */
+.s-run  { color:#1a6e3a; background:rgba(39,174,96,.12); }
+.s-run  .sdot { background:var(--green); box-shadow:0 0 6px var(--green); }
+
+/* Make Ready — yellow */
+.s-mr   { color:#7a5200; background:rgba(230,126,34,.12); }
+.s-mr   .sdot { background:var(--yellow); }
+
+/* Down — red flashing */
+.s-down { color:#8b1a1a; background:rgba(231,76,60,.12); }
+.s-down .sdot { background:var(--red); animation:flash 1s infinite; }
+@keyframes flash { 0%,100%{ opacity:1; box-shadow:0 0 6px var(--red); } 50%{ opacity:.15; box-shadow:none; } }
+
+/* Idle — gray */
+.s-idle { color:var(--gray); background:rgba(149,165,166,.1); }
+.s-idle .sdot { background:var(--gray); }
+
+/* Trend indicator */
+.trend-down { color:var(--red); font-size:.72rem; font-weight:700; margin-left:4px; }
+.trend-up   { color:var(--green); font-size:.72rem; font-weight:700; margin-left:4px; }
+.trend-flat { color:var(--gray); font-size:.72rem; margin-left:4px; }
+.mcard-uph { font-family:'Share Tech Mono',monospace; font-size:1.5rem; color:var(--text); line-height:1; }
+.mcard-sub { font-size:.54rem; color:var(--muted); text-transform:uppercase; letter-spacing:.08em; margin-top:1px; }
+.mcard-divider { border:none; border-top:1px solid var(--border); margin:7px 0; }
+.mcard-row { display:flex; justify-content:space-between; margin-top:3px; }
+.mrl { font-size:.63rem; color:var(--muted); }
+.mrv { font-family:'Share Tech Mono',monospace; font-size:.65rem; }
+.charts-grid { display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-top:20px; }
+@media(max-width:900px){ .charts-grid{grid-template-columns:1fr;} }
+.chart-wrap { background:var(--panel); border:1px solid var(--border); border-radius:8px; overflow:hidden; height:290px; }
+.chart-wrap canvas { max-height:244px; padding:14px; }
+.refresh-bar { display:flex; align-items:center; justify-content:space-between; margin-bottom:18px; }
+.refresh-lbl { font-size:.68rem; color:var(--muted); font-weight:600; }
+
+/* DOWNTIME INTERRUPTION BANNER */
+.dt-banner { background:rgba(231,76,60,.08); border:1px solid rgba(231,76,60,.35); border-radius:6px; padding:9px 12px; margin-bottom:10px; }
+.dt-banner-top { display:flex; align-items:center; justify-content:space-between; }
+.dt-banner-label { display:flex; align-items:center; gap:6px; font-size:.7rem; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:var(--red); }
+.dt-flash { width:8px; height:8px; border-radius:50%; background:var(--red); animation:flash 1s infinite; flex-shrink:0; }
+.dt-banner-reason { font-size:.72rem; color:var(--muted); margin-top:4px; }
+.dt-banner-elapsed { font-family:'Share Tech Mono',monospace; font-size:.75rem; color:var(--red); font-weight:700; }
+
+
+.time-row { display:flex; gap:8px; align-items:center; }
+.time-row input { flex:1; }
+.btn-now { background:var(--accent); color:#000; border:none; border-radius:6px; font-family:'Barlow',sans-serif; font-size:.72rem; font-weight:700; letter-spacing:.07em; text-transform:uppercase; padding:9px 14px; cursor:pointer; white-space:nowrap; transition:opacity .2s; }
+.btn-now:hover { opacity:.85; }
+
+.toast { position:fixed; bottom:24px; right:24px; background:var(--accent2); color:#000; font-family:'Barlow',sans-serif; font-weight:700; font-size:.82rem; padding:10px 18px; border-radius:6px; opacity:0; transform:translateY(8px); transition:all .25s; pointer-events:none; z-index:999; }
+.toast.show { opacity:1; transform:translateY(0); }
+
+/* COLLAPSIBLE JOB CARDS */
+.jc-header {
+  display:flex; align-items:center; gap:10px;
+  padding:10px 14px; cursor:pointer;
+  user-select:none; transition:background .15s;
+}
+.jc-header:hover { background:rgba(0,0,0,.03); }
+.jc-toggle {
+  margin-left:auto; font-size:.75rem; color:var(--muted);
+  transition:transform .2s; flex-shrink:0;
+}
+.job-card.expanded .jc-toggle { transform:rotate(180deg); }
+.jc-body { display:none; padding:0 14px 14px; border-top:1px solid var(--border); }
+.job-card.expanded .jc-body { display:block; }
+.jc-pill {
+  font-size:.65rem; font-weight:700; letter-spacing:.07em;
+  text-transform:uppercase; padding:2px 8px; border-radius:20px;
+  border:1px solid currentColor; white-space:nowrap;
+}
+
+.btn-log-alert {
+  width:100%; border:none; border-radius:6px; font-family:'Barlow',sans-serif;
+  font-weight:700; letter-spacing:.07em; text-transform:uppercase; cursor:pointer;
+  display:flex; align-items:center; justify-content:center; gap:8px;
+  padding:9px 18px; font-size:.78rem;
+  animation: flashLogBtn .8s infinite;
+}
+@keyframes flashLogBtn {
+  0%,100% { background:var(--yellow); color:#000; box-shadow:0 0 12px rgba(230,126,34,.8); }
+  50%      { background:rgba(230,126,34,.25); color:var(--yellow); box-shadow:none; }
+}
+.blink-dot { width:9px; height:9px; border-radius:50%; flex-shrink:0; background:currentColor; }
+.job-card.mr-overtime { animation: flashMRCard 1s infinite; }
+@keyframes flashMRCard {
+  0%,100% { border-color:var(--yellow); box-shadow:0 0 0 2px rgba(230,126,34,.6); }
+  50%      { border-color:var(--border); box-shadow:none; }
+}
+.mr-overtime-badge {
+  animation: flashMRBadge 1s infinite;
+  font-weight:900;
+}
+@keyframes flashMRBadge {
+  0%,100% { background:rgba(230,126,34,.3); color:var(--yellow); }
+  50%      { background:rgba(230,126,34,.05); color:rgba(230,126,34,.4); }
+}
+
+.prog-wrap { margin-top:10px; }
+.prog-header { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:4px; }
+.prog-label  { font-size:.6rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); }
+.prog-pct    { font-family:'Share Tech Mono',monospace; font-size:.75rem; font-weight:700; }
+.prog-track  { position:relative; height:8px; background:#e8e8e8; border-radius:4px; overflow:visible; }
+.prog-fill   { height:100%; border-radius:4px; transition:width .4s ease; }
+.prog-fill.p0   { background:var(--gray); }
+.prog-fill.p25  { background:var(--yellow); }
+.prog-fill.p50  { background:var(--accent); }
+.prog-fill.p75  { background:var(--green); }
+.prog-fill.p100 { background:var(--accent2); }
+.prog-tick  { position:absolute; top:-3px; width:2px; height:14px; background:rgba(255,255,255,.9); border-radius:1px; }
+.prog-footer { display:flex; justify-content:space-between; margin-top:3px; }
+.prog-foot-lbl { font-size:.55rem; color:var(--muted); }
+.prog-units { font-size:.68rem; color:var(--muted); margin-top:3px; text-align:center; font-family:'Share Tech Mono',monospace; }
+
+
+.arch-summary { display:grid; grid-template-columns:repeat(5,1fr); gap:12px; margin-bottom:20px; }
+@media(max-width:800px){ .arch-summary{grid-template-columns:repeat(3,1fr);} }
+.arch-table-wrap { background:var(--panel); border:1px solid var(--border); border-radius:8px; overflow-x:auto; margin-bottom:8px; }
+.arch-table { width:100%; border-collapse:collapse; font-size:.78rem; min-width:900px; }
+.arch-table th {
+  background:#f5f5f5; font-size:.6rem; font-weight:700; letter-spacing:.1em;
+  text-transform:uppercase; color:var(--muted); text-align:left;
+  padding:9px 12px; border-bottom:2px solid var(--border); white-space:nowrap;
+  cursor:pointer; user-select:none;
+}
+.arch-table th:hover { color:var(--accent); }
+.arch-table th.sort-asc::after  { content:' ▲'; color:var(--accent); }
+.arch-table th.sort-desc::after { content:' ▼'; color:var(--accent); }
+.arch-table td { padding:9px 12px; border-bottom:1px solid #f0f0f0; white-space:nowrap; vertical-align:middle; }
+.arch-table tr:last-child td { border-bottom:none; }
+.arch-table tr:hover td { background:rgba(240,165,0,.04); }
+.arch-table td.mono { font-family:'Share Tech Mono',monospace; }
+.arch-badge { display:inline-block; font-size:.62rem; font-weight:700; letter-spacing:.07em; text-transform:uppercase; padding:3px 8px; border-radius:4px; }
+.arch-badge.press { background:rgba(231,76,60,.1); color:var(--press); }
+.arch-badge.fold  { background:rgba(240,165,0,.1); color:#c87f00; }
+.arch-badge.bind  { background:rgba(0,194,168,.1); color:#008c7a; }
+.arch-empty { text-align:center; padding:32px; color:var(--muted); font-size:.82rem; }
+.uph-pill { display:inline-block; background:rgba(39,174,96,.1); color:var(--green); font-family:'Share Tech Mono',monospace; font-size:.75rem; font-weight:700; padding:2px 8px; border-radius:4px; }
+.dt-pill  { display:inline-block; background:rgba(231,76,60,.1); color:var(--red); font-family:'Share Tech Mono',monospace; font-size:.75rem; font-weight:700; padding:2px 8px; border-radius:4px; }
+
+
+/* QR SCANNER */
+.scan-wrap { display:flex; gap:8px; align-items:center; }
+.scan-wrap input { flex:1; }
+.btn-scan {
+  flex-shrink:0; width:38px; height:38px; border:1px solid var(--border);
+  border-radius:6px; background:#f8f8f8; cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+  transition:all .2s; padding:0;
+}
+.btn-scan:hover { border-color:var(--accent); background:rgba(240,165,0,.08); }
+.btn-scan svg { width:18px; height:18px; }
+.scan-overlay {
+  position:fixed; inset:0; z-index:1000;
+  background:#000; display:flex; flex-direction:column;
+  align-items:center; justify-content:center;
+}
+.scan-overlay video { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; opacity:.85; }
+.scan-overlay canvas { display:none; }
+.scan-ui { position:relative; z-index:10; display:flex; flex-direction:column; align-items:center; width:100%; }
+.scan-field-label { background:rgba(0,0,0,.7); color:white; font-family:'Barlow',sans-serif; font-size:.85rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase; padding:10px 24px; border-radius:30px; margin-bottom:28px; border:1px solid rgba(255,255,255,.2); }
+.scan-field-label span { color:var(--accent); }
+.scan-viewfinder { position:relative; width:260px; height:260px; }
+.scan-corner { position:absolute; width:32px; height:32px; border-color:var(--accent); border-style:solid; }
+.scan-corner.tl { top:0; left:0; border-width:4px 0 0 4px; border-radius:4px 0 0 0; }
+.scan-corner.tr { top:0; right:0; border-width:4px 4px 0 0; border-radius:0 4px 0 0; }
+.scan-corner.bl { bottom:0; left:0; border-width:0 0 4px 4px; border-radius:0 0 0 4px; }
+.scan-corner.br { bottom:0; right:0; border-width:0 4px 4px 0; border-radius:0 0 4px 0; }
+.scan-line { position:absolute; left:4px; right:4px; height:2px; background:linear-gradient(to right,transparent,var(--accent),transparent); animation:scanLine 1.8s ease-in-out infinite; }
+@keyframes scanLine { 0%{top:4px;opacity:0} 10%{opacity:1} 90%{opacity:1} 100%{top:calc(100% - 6px);opacity:0} }
+.scan-hint { margin-top:28px; color:rgba(255,255,255,.7); font-family:'Barlow',sans-serif; font-size:.78rem; font-weight:600; letter-spacing:.06em; text-align:center; background:rgba(0,0,0,.5); padding:8px 20px; border-radius:20px; }
+.scan-close { position:absolute; top:24px; right:24px; z-index:20; width:52px; height:52px; border-radius:50%; background:rgba(0,0,0,.6); border:2px solid rgba(255,255,255,.3); color:white; font-size:1.4rem; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:background .2s; }
+.scan-close:hover { background:rgba(231,76,60,.7); }
+@keyframes successFlash { 0%{opacity:1} 100%{opacity:0} }
+/* LOGIN SCREEN */
+.login-overlay { position:fixed; inset:0; z-index:9999; background:#1a1a2e; display:flex; align-items:center; justify-content:center; flex-direction:column; }
+.login-box { background:#fff; border-radius:12px; padding:36px 32px; width:100%; max-width:360px; box-shadow:0 8px 40px rgba(0,0,0,0.4); }
+.login-logo { text-align:center; margin-bottom:24px; }
+.login-logo h1 { font-size:1.4rem; font-weight:900; letter-spacing:.1em; text-transform:uppercase; color:var(--accent); }
+.login-logo p { font-size:.72rem; color:var(--muted); margin-top:4px; letter-spacing:.08em; text-transform:uppercase; }
+.login-field { margin-bottom:14px; }
+.login-field label { display:block; font-size:.68rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin-bottom:6px; }
+.login-field input { width:100%; background:#f8f8f8; border:1px solid var(--border); border-radius:6px; color:var(--text); font-family:'Barlow',sans-serif; font-size:.95rem; padding:11px 14px; outline:none; transition:border-color .2s; }
+.login-field input:focus { border-color:var(--accent); background:#fff; }
+.btn-login { width:100%; background:var(--dark); color:#fff; border:none; border-radius:6px; font-family:'Barlow',sans-serif; font-size:.9rem; font-weight:700; letter-spacing:.08em; text-transform:uppercase; padding:13px; cursor:pointer; margin-top:8px; transition:background .2s; }
+.btn-login:hover { background:var(--accent); color:#000; }
+.login-error { background:rgba(231,76,60,.1); border:1px solid rgba(231,76,60,.3); color:var(--red); border-radius:6px; padding:9px 14px; font-size:.78rem; font-weight:600; margin-top:12px; text-align:center; display:none; }
+.login-footer { text-align:center; margin-top:16px; font-size:.65rem; color:rgba(255,255,255,.3); letter-spacing:.06em; }
+.logout-btn { background:#c0392b; border:1px solid #a93226; border-radius:6px; color:#fff; font-family:'Barlow',sans-serif; font-size:.68rem; font-weight:700; letter-spacing:.08em; text-transform:uppercase; padding:5px 12px; cursor:pointer; transition:background .2s; }
+.logout-btn:hover { background:#e74c3c; border-color:#e74c3c; }
+</style>
+
+</head>
+<body>
+
+<!-- ═══ LOGIN SCREEN ═══ -->
+<div id="login_overlay" class="login-overlay">
+  <div class="login-box">
+    <div class="login-logo">
+      <h1>⚙ Print MIS</h1>
+      <p>Production Management System</p>
+    </div>
+    <div class="login-field">
+      <label>Username</label>
+      <input type="text" id="login_user" placeholder="Enter username"
+        autocomplete="username" autocapitalize="none"
+        onkeydown="if(event.key==='Enter') document.getElementById('login_pass').focus()">
+    </div>
+    <div class="login-field">
+      <label>Password</label>
+      <input type="password" id="login_pass" placeholder="Enter password"
+        autocomplete="current-password"
+        onkeydown="if(event.key==='Enter') doLogin()">
+    </div>
+    <button class="btn-login" onclick="doLogin()">Sign In</button>
+    <div class="login-error" id="login_error">Incorrect username or password. Try again.</div>
+  </div>
+  <div class="login-footer">EPMP Print MIS · Authorized Users Only</div>
+</div>
+  <div class="hdr-left">
+    <h1>⚙ Print MIS</h1>
+    <span id="clock"></span>
+    <span id="user_tag" style="font-size:.7rem;color:rgba(255,255,255,.5);font-weight:600;letter-spacing:.06em;text-transform:uppercase;"></span>
+  </div>
+  <nav class="tab-nav">
+    <button class="ntab active" onclick="showView('active',this)">📋 Active Jobs</button>
+    <button class="ntab" onclick="showView('new',this)">＋ New Job</button>
+    <button class="ntab" onclick="showView('dash',this)">📊 Dashboard</button>
+    <button class="ntab" onclick="showView('archive',this)">🗂 Archive</button>
+    <button class="ntab" onclick="showView('report',this)">📄 Job Report</button>
+    <button class="logout-btn" onclick="doLogout()" id="logout_btn" style="margin-left:12px;">⏻ Sign Out</button>
+  </nav>
+</header>
+
+<!-- ═══ ACTIVE JOBS ═══ -->
+<div id="view_active" class="content">
+  <div class="view-header">
+    <h2 class="view-title">Active Jobs</h2>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <button class="btn btn-secondary btn-sm" onclick="togglePreviewTimers(this)" id="btn_preview_timers">⚡ Preview Timer Alerts</button>
+      <button class="btn btn-new" onclick="showView('new', document.querySelectorAll('.ntab')[1])">＋ New Job</button>
+    </div>
+  </div>
+
+  <!-- Timer preview strip — shown when preview mode is on -->
+  <div id="timer_preview_strip" class="hidden" style="display:none;gap:12px;margin-bottom:20px;flex-wrap:wrap;">
+    <div style="display:flex;align-items:center;gap:8px;background:rgba(230,126,34,.08);border:1px solid rgba(230,126,34,.3);border-radius:8px;padding:10px 14px;">
+      <span style="font-size:.68rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);">Production Alert →</span>
+      <button class="btn-log-alert" style="width:auto;padding:7px 14px;font-size:.72rem;"><span class="blink-dot"></span>⚠ Log Units Now</button>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;background:rgba(230,126,34,.08);border:1px solid rgba(230,126,34,.3);border-radius:8px;padding:10px 14px;">
+      <span style="font-size:.68rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);">Make Ready Alert →</span>
+      <span class="stage-badge makeready mr-overtime-badge">⚠ MR Overtime</span>
+      <span style="font-size:.68rem;color:var(--muted);">+ card border flashes</span>
+    </div>
+  </div>
+
+  <!-- Scheduling -->
+  <div id="dept_sched_section">
+    <div class="dept-header">
+      <div class="dept-dot" style="background:#2ecc71"></div>
+      <div class="dept-title">Scheduling</div>
+      <div class="dept-count" id="dept_sched_count"></div>
+    </div>
+    <div class="jobs-grid" id="dept_sched_list"></div>
+  </div>
+
+  <!-- Prepress -->
+  <div id="dept_prepress_section" style="margin-top:24px;">
+    <div class="dept-header">
+      <div class="dept-dot" style="background:#9b59b6"></div>
+      <div class="dept-title">Prepress</div>
+      <div class="dept-count" id="dept_prepress_count"></div>
+    </div>
+    <div class="jobs-grid" id="dept_prepress_list"></div>
+  </div>
+
+  <!-- Press -->
+  <div id="dept_press_section" style="margin-top:24px;">
+    <div class="dept-header">
+      <div class="dept-dot" style="background:var(--press)"></div>
+      <div class="dept-title">Press</div>
+      <div class="dept-count" id="dept_press_count"></div>
+    </div>
+    <div class="jobs-grid" id="dept_press_list"></div>
+  </div>
+
+  <!-- Folding -->
+  <div id="dept_fold_section" style="margin-top:24px;">
+    <div class="dept-header">
+      <div class="dept-dot" style="background:var(--fold)"></div>
+      <div class="dept-title">Folding</div>
+      <div class="dept-count" id="dept_fold_count"></div>
+    </div>
+    <div class="jobs-grid" id="dept_fold_list"></div>
+  </div>
+
+  <!-- Bindery -->
+  <div id="dept_bind_section" style="margin-top:24px;">
+    <div class="dept-header">
+      <div class="dept-dot" style="background:var(--bind)"></div>
+      <div class="dept-title">Bindery</div>
+      <div class="dept-count" id="dept_bind_count"></div>
+    </div>
+    <div class="jobs-grid" id="dept_bind_list"></div>
+  </div>
+
+  <!-- Finishing -->
+  <div id="dept_finish_section" style="margin-top:24px;">
+    <div class="dept-header">
+      <div class="dept-dot" style="background:#1abc9c"></div>
+      <div class="dept-title">Finishing</div>
+      <div class="dept-count" id="dept_finish_count"></div>
+    </div>
+    <div class="jobs-grid" id="dept_finish_list"></div>
+  </div>
+
+  <!-- Mailing -->
+  <div id="dept_mail_section" style="margin-top:24px;">
+    <div class="dept-header">
+      <div class="dept-dot" style="background:#3498db"></div>
+      <div class="dept-title">Mailing</div>
+      <div class="dept-count" id="dept_mail_count"></div>
+    </div>
+    <div class="jobs-grid" id="dept_mail_list"></div>
+  </div>
+
+  <!-- Fulfillment -->
+  <div id="dept_fulfill_section" style="margin-top:24px;">
+    <div class="dept-header">
+      <div class="dept-dot" style="background:#e67e22"></div>
+      <div class="dept-title">Fulfillment</div>
+      <div class="dept-count" id="dept_fulfill_count"></div>
+    </div>
+    <div class="jobs-grid" id="dept_fulfill_list"></div>
+  </div>
+
+  <!-- Shipping/Inventory -->
+  <div id="dept_ship_section" style="margin-top:24px;">
+    <div class="dept-header">
+      <div class="dept-dot" style="background:var(--gray)"></div>
+      <div class="dept-title">Shipping/Inventory</div>
+      <div class="dept-count" id="dept_ship_count"></div>
+    </div>
+    <div class="jobs-grid" id="dept_ship_list"></div>
+  </div>
+
+  <!-- Completed Today -->
+  <div id="complete_section" class="hidden" style="margin-top:32px;">
+    <div class="view-header">
+      <h2 class="view-title" style="color:var(--muted);">Completed Today</h2>
+    </div>
+    <div class="jobs-grid" id="complete_list"></div>
+  </div>
+</div>
+
+<!-- ═══ NEW JOB FORM ═══ -->
+<div id="view_new" class="content hidden">
+  <div class="view-header">
+    <h2 class="view-title">New Job Setup</h2>
+    <button class="btn btn-secondary" onclick="showView('active', document.querySelectorAll('.ntab')[0])">← Back to Jobs</button>
+  </div>
+  <div class="form-grid">
+    <div>
+      <div class="panel">
+        <div class="panel-title">Operator &amp; Job Info</div>
+        <div class="panel-body">
+          <label>Operator Name</label>
+          <select id="f_operator">
+            <option value="">— Select Operator —</option>
+            <optgroup label="── Management ──">
+              <option>Carlos</option>
+              <option>Ismael</option>
+              <option>Jorge</option>
+              <option>Frank</option>
+            </optgroup>
+            <optgroup label="── Prepress ──">
+              <option>Aaron</option>
+              <option>Nate</option>
+              <option>Emma</option>
+              <option>Humberto</option>
+            </optgroup>
+            <optgroup label="── Press ──">
+              <option>Victor</option>
+              <option>Tony</option>
+              <option>Pepe</option>
+            </optgroup>
+            <optgroup label="── Bindery ──">
+              <option>Becky</option>
+              <option>Hector</option>
+              <option>Ruben</option>
+              <option>David</option>
+              <option>Leo</option>
+              <option>Paul</option>
+            </optgroup>
+          </select>
+          <div class="row-2">
+            <div>
+              <label>Job Number</label>
+              <div class="scan-wrap">
+                <input type="text" id="f_job" placeholder="e.g. 26-1448"
+                  oninput="scheduleJobLookup(this.value)">
+                <button class="btn-scan" onclick="openScanner('f_job','Job Number')" title="Scan QR Code"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></button>
+              </div>
+              <div id="job_lookup_status" style="font-size:.68rem;color:var(--muted);margin-top:4px;min-height:14px;"></div>
+            </div>
+            <div>
+              <label>PO Number</label>
+              <input type="text" id="f_po" placeholder="e.g. PO-5521">
+            </div>
+          </div>
+          <label>Department</label>
+          <select id="f_optype" onchange="onOpChange()">
+            <option value="">— Select Department —</option>
+            <option value="Scheduling">Scheduling</option>
+            <option value="Prepress">Prepress</option>
+            <option value="Press">Press</option>
+            <option value="Folding">Folding</option>
+            <option value="Bindery">Bindery</option>
+            <option value="Finishing">Finishing</option>
+            <option value="Mailing">Mailing</option>
+            <option value="Fulfillment">Fulfillment</option>
+            <option value="Shipping/Inventory">Shipping/Inventory</option>
+          </select>
+          <label>Operation</label>
+          <select id="f_machine"><option value="">— Select Department First —</option></select>
+
+          <!-- Fulfillment: open text -->
+          <div id="field_fulfillment_notes" class="hidden">
+            <label>Fulfillment Notes</label>
+            <textarea id="f_fulfillment_notes" rows="4" placeholder="Describe fulfillment activity..." style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-family:'Barlow',sans-serif;font-size:.85rem;resize:vertical;"></textarea>
+          </div>
+
+          <!-- Shipping/Inventory: function selector + notes -->
+          <div id="field_shipping_func" class="hidden">
+            <label>Shipping Function</label>
+            <div style="display:flex;gap:16px;margin-bottom:10px;">
+              <label style="display:flex;align-items:center;gap:6px;font-weight:600;cursor:pointer;">
+                <input type="radio" name="ship_func" value="Out for Delivery" id="ship_delivery"> Out for Delivery
+              </label>
+              <label style="display:flex;align-items:center;gap:6px;font-weight:600;cursor:pointer;">
+                <input type="radio" name="ship_func" value="Hold for Inventory" id="ship_inventory"> Hold for Inventory
+              </label>
+            </div>
+            <label>Shipping Notes</label>
+            <textarea id="f_shipping_notes" rows="3" placeholder="Carrier, tracking, location notes..." style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-family:'Barlow',sans-serif;font-size:.85rem;resize:vertical;"></textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <!-- ── JOB SPECIFICATIONS ───────────────────────────────── -->
+      <div class="panel">
+        <div class="panel-title">Job Specifications</div>
+        <div class="panel-body">
+          <div class="row-2">
+            <div><label>Customer Name</label><input type="text" id="f_customer" placeholder="Customer name"></div>
+            <div><label>Due Date</label><input type="date" id="f_due_date"></div>
+          </div>
+          <label>Job Description</label>
+          <input type="text" id="f_product_type" placeholder="e.g. 4-page brochure, #10 envelope, postcard">
+          <div class="row-2" style="margin-top:10px;">
+            <div><label>Quantity</label><input type="number" id="f_qty" placeholder="5000" min="0"></div>
+            <div><label>Finished Size</label><input type="text" id="f_finished_size" placeholder='e.g. 8.5" x 11"'></div>
+          </div>
+          <div id="field_colors" class="hidden">
+            <label>Colors</label>
+            <select id="f_colors">
+              <option value="">— Select —</option>
+              <option>4/0 (4 color front only)</option>
+              <option>4/4 (4 color both sides)</option>
+              <option>1/1 (black both sides)</option>
+            </select>
+          </div>
+          <div id="field_fold" class="hidden">
+            <label>Fold Type</label>
+            <select id="f_fold">
+              <option value="">— Select —</option>
+              <option>FT01_[H+H+DPF]</option><option>FT02_[H+H+DPF]</option>
+              <option>FT03_[DPF+DPF]</option><option>FT04_[H+DPF]</option>
+              <option>FT05_[Z+H]</option><option>FT06_[TRI+H]</option>
+              <option>FT07_[DPF+H]</option><option>FT08_[H+H]</option>
+              <option>FT09_[H]</option><option>FT10_[Z+DPF]</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── MATERIAL REQUISITION ───────────────────────────────── -->
+      <div id="sched_panel" class="hidden">
+        <div class="panel" style="margin-top:12px;">
+          <div class="panel-title">📋 Material Requisition</div>
+          <div class="panel-body">
+
+            <!-- Product Type -->
+            <label>Product Type</label>
+            <select id="f_mr_product_type">
+              <option value="">— Select Product Type —</option>
+              <option>Banners</option>
+              <option>Booklet</option>
+              <option>Brochures</option>
+              <option>Business Card</option>
+              <option>Clamshell</option>
+              <option>Door Hangers</option>
+              <option>Envelopes</option>
+              <option>Flyers</option>
+              <option>Folding Carton</option>
+              <option>Forms</option>
+              <option>Label</option>
+              <option>Pocket Folders</option>
+              <option>Postcard</option>
+              <option>Posters</option>
+              <option>Pushcard</option>
+              <option>Signage</option>
+            </select>
+
+            <!-- Paper Type -->
+            <label style="margin-top:10px;display:block;">Paper Type</label>
+            <select id="f_paper_type_sel" onchange="onPaperTypeChange()">
+              <option value="">— Select Paper Type —</option>
+              <option>50lb Uncoated Text</option>
+              <option>60lb Uncoated Text</option>
+              <option>70lb Uncoated Text</option>
+              <option>80lb Uncoated Text</option>
+              <option>80lb Coated Text</option>
+              <option>100lb Coated Text</option>
+              <option>100lb Coated Cover</option>
+              <option>80lb Gloss Cover</option>
+              <option>100lb Gloss Cover</option>
+              <option>14pt Card Stock</option>
+              <option>16pt Card Stock</option>
+              <option>Other</option>
+            </select>
+            <div id="f_paper_type_other_wrap" class="hidden" style="margin-top:6px;">
+              <input type="text" id="f_paper_type_other" placeholder="Describe paper type...">
+            </div>
+
+            <!-- Sheet specs -->
+            <div class="row-2" style="margin-top:10px;">
+              <div><label>Parent Size</label><input type="text" id="f_parent_size" placeholder='e.g. 26" x 40"'></div>
+              <div><label>Parent Sheets</label><input type="number" id="f_parent_sheets" min="0" placeholder="e.g. 500"></div>
+            </div>
+            <div class="row-2">
+              <div><label>Press Size</label><input type="text" id="f_press_size" placeholder='e.g. 13" x 20"'></div>
+              <div><label>Press Sheets</label><input type="number" id="f_press_sheets" min="0" placeholder="e.g. 2500"></div>
+            </div>
+            <div class="row-2">
+              <div><label>No. of Pages</label><input type="number" id="f_pages" min="0" placeholder="e.g. 8"></div>
+              <div><label>No. of Signatures</label><input type="number" id="f_sched_sigs" min="0" placeholder="e.g. 4"></div>
+            </div>
+            <div class="row-2">
+              <div><label>No. of Forms</label><input type="number" id="f_sched_forms" min="0" placeholder="e.g. 2"></div>
+              <div><label>Up on Press</label><input type="number" id="f_up_on_press" min="1" placeholder="e.g. 4"></div>
+            </div>
+
+            <!-- Print Process -->
+            <label style="margin-top:4px;display:block;">Print Process</label>
+            <div style="display:flex;flex-wrap:wrap;gap:12px;margin-bottom:12px;">
+              <label style="display:flex;align-items:center;gap:6px;font-weight:600;cursor:pointer;"><input type="radio" name="print_process" value="Offset"> Offset</label>
+              <label style="display:flex;align-items:center;gap:6px;font-weight:600;cursor:pointer;"><input type="radio" name="print_process" value="Digital"> Digital</label>
+              <label style="display:flex;align-items:center;gap:6px;font-weight:600;cursor:pointer;"><input type="radio" name="print_process" value="Outsource"> Outsource</label>
+              <label style="display:flex;align-items:center;gap:6px;font-weight:600;cursor:pointer;"><input type="radio" name="print_process" value="Pull from Inventory"> Pull from Inventory</label>
+              <label style="display:flex;align-items:center;gap:6px;font-weight:600;cursor:pointer;"><input type="radio" name="print_process" value="Other"> Other</label>
+            </div>
+
+            <!-- Waste & Calc -->
+            <div class="row-2">
+              <div><label>Waste %</label><input type="number" id="f_waste_pct" min="0" max="100" placeholder="e.g. 5"></div>
+              <div>
+                <label>Calculated Press Sheets</label>
+                <div style="display:flex;gap:8px;align-items:center;">
+                  <input type="number" id="f_calc_press_sheets" placeholder="Auto-calculated" readonly style="background:#f0f0f0;flex:1;">
+                  <button class="btn btn-secondary btn-sm" onclick="calcPressSheets()" style="white-space:nowrap;">⟳ Calc</button>
+                </div>
+              </div>
+            </div>
+
+            <label style="margin-top:4px;display:block;">Scheduling Notes</label>
+            <textarea id="f_sched_notes" rows="3" placeholder="Additional notes, special instructions..." style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-family:'Barlow',sans-serif;font-size:.85rem;resize:vertical;"></textarea>
+          </div>
+        </div>
+      </div>
+      <div style="background:rgba(240,165,0,0.08);border:1px solid rgba(240,165,0,0.25);border-radius:6px;padding:10px 14px;margin-bottom:12px;" id="mr_start_panel">
+        <div style="font-size:.62rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:6px;">Make Ready Start Time</div>
+        <div class="time-row">
+          <input type="datetime-local" id="f_mr_start_time">
+          <button class="btn-now" onclick="setNow('f_mr_start_time')">⚡ Now</button>
+        </div>
+        <div style="font-size:.65rem;color:var(--muted);margin-top:6px;">Leave blank to use current time automatically</div>
+      </div>
+      <button class="btn btn-primary" style="width:100%;padding:13px;font-size:.88rem;" onclick="createJob()" id="btn_create_job">✓ Create Job &amp; Start Make Ready</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ JOB REPORT ═══ -->
+<div id="view_report" class="content hidden">
+  <div class="view-header">
+    <h2 class="view-title">Job Production Report</h2>
+    <button class="btn btn-secondary btn-sm" onclick="window.print()">🖨 Print Report</button>
+  </div>
+  <div style="display:flex;gap:10px;align-items:center;margin-bottom:20px;">
+    <div class="scan-wrap" style="flex:1;max-width:320px;">
+      <input type="text" id="report_job_input" placeholder="Enter Job Number..." style="font-size:.9rem;padding:10px 14px;">
+      <button class="btn-scan" onclick="openScanner('report_job_input','Job Number')" title="Scan QR Code"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></button>
+    </div>
+    <button class="btn btn-primary" onclick="loadJobReport()">🔍 Pull Report</button>
+  </div>
+  <div id="report_content">
+    <div style="text-align:center;padding:60px 20px;color:var(--muted);">
+      <div style="font-size:2rem;margin-bottom:12px;">📄</div>
+      <div style="font-size:.85rem;font-weight:600;">Enter a Job Number above to pull the full production report from Google Sheets</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ BEGIN NEXT OPERATION MODAL ═══ -->
+<div id="next_op_modal" class="modal-overlay hidden">
+  <div class="modal" style="max-width:440px;">
+    <div class="modal-title">➕ Begin Next Operation</div>
+    <div id="next_op_job_info" style="background:#f8f8f8;border-radius:6px;padding:10px 14px;margin-bottom:16px;font-size:.8rem;color:var(--muted);"></div>
+    <div style="margin-bottom:12px;">
+      <label style="display:block;font-size:.68rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:6px;">Department</label>
+      <select id="next_op_dept" onchange="onNextOpDeptChange()" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:6px;font-size:.9rem;">
+        <option value="">— Select Department —</option>
+        <option value="Prepress">Prepress</option>
+        <option value="Press">Press</option>
+        <option value="Folding">Folding</option>
+        <option value="Bindery">Bindery</option>
+        <option value="Finishing">Finishing</option>
+        <option value="Mailing">Mailing</option>
+        <option value="Fulfillment">Fulfillment</option>
+        <option value="Shipping/Inventory">Shipping/Inventory</option>
+      </select>
+    </div>
+    <div style="margin-bottom:12px;">
+      <label style="display:block;font-size:.68rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:6px;">Operation</label>
+      <select id="next_op_operation" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:6px;font-size:.9rem;">
+        <option value="">— Select Department First —</option>
+      </select>
+    </div>
+    <div style="margin-bottom:16px;">
+      <label style="display:block;font-size:.68rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:6px;">Assign Operator</label>
+      <select id="next_op_operator" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:6px;font-size:.9rem;">
+        <option value="">— Select Operator —</option>
+        <optgroup label="── Prepress ──">
+          <option>Aaron</option><option>Nate</option><option>Emma</option><option>Humberto</option>
+        </optgroup>
+        <optgroup label="── Press ──">
+          <option>Victor</option><option>Tony</option><option>Pepe</option>
+        </optgroup>
+        <optgroup label="── Bindery ──">
+          <option>Becky</option><option>Hector</option><option>Ruben</option>
+          <option>David</option><option>Leo</option><option>Paul</option>
+        </optgroup>
+      </select>
+    </div>
+    <div style="display:flex;gap:10px;">
+      <button class="btn btn-primary" style="flex:1;" onclick="confirmBeginNextOp()">▶ Begin Operation</button>
+      <button class="btn btn-secondary" onclick="document.getElementById('next_op_modal').classList.add('hidden')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MATERIAL REQUISITION MODAL ═══ -->
+<div id="mr_modal" class="modal-overlay hidden">
+  <div class="modal" style="max-width:600px;">
+    <div class="modal-title">Material Requisition</div>
+    <div id="mr_preview" style="border:1px solid var(--border);border-radius:6px;padding:20px;margin-bottom:16px;background:#fff;"></div>
+    <div style="display:flex;gap:10px;">
+      <button class="btn btn-primary" onclick="printMR()">🖨 Print MR</button>
+      <button class="btn btn-secondary" onclick="saveMRtoDrive()">💾 Save to Drive</button>
+      <button class="btn btn-secondary" onclick="document.getElementById('mr_modal').classList.add('hidden')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ DASHBOARD ═══ -->
+<div id="view_dash" class="content hidden">
+  <div class="refresh-bar">
+    <span class="refresh-lbl" id="refresh_lbl">Auto-refreshes every 30s</span>
+    <button class="btn btn-secondary btn-sm" onclick="renderDashboard()">↻ Refresh</button>
+  </div>
+  <div class="dash-summary" id="dash_summary"></div>
+  <div id="dept_report"></div>
+  <div class="dept-header"><div class="dept-dot" style="background:#2ecc71"></div><div class="dept-title">Scheduling</div><div class="dept-count" id="cnt_sched"></div></div>
+  <div class="machine-cards" id="cards_sched"></div>
+  <div class="dept-header"><div class="dept-dot" style="background:#9b59b6"></div><div class="dept-title">Prepress</div><div class="dept-count" id="cnt_prepress"></div></div>
+  <div class="machine-cards" id="cards_prepress"></div>
+  <div class="dept-header"><div class="dept-dot" style="background:var(--press)"></div><div class="dept-title">Press</div><div class="dept-count" id="cnt_press"></div></div>
+  <div class="machine-cards" id="cards_press"></div>
+  <div class="dept-header"><div class="dept-dot" style="background:var(--fold)"></div><div class="dept-title">Folding</div><div class="dept-count" id="cnt_fold"></div></div>
+  <div class="machine-cards" id="cards_fold"></div>
+  <div class="dept-header"><div class="dept-dot" style="background:var(--bind)"></div><div class="dept-title">Bindery</div><div class="dept-count" id="cnt_bind"></div></div>
+  <div class="machine-cards" id="cards_bind"></div>
+  <div class="dept-header"><div class="dept-dot" style="background:#1abc9c"></div><div class="dept-title">Finishing</div><div class="dept-count" id="cnt_finish"></div></div>
+  <div class="machine-cards" id="cards_finish"></div>
+  <div class="dept-header"><div class="dept-dot" style="background:#3498db"></div><div class="dept-title">Mailing</div><div class="dept-count" id="cnt_mail"></div></div>
+  <div class="machine-cards" id="cards_mail"></div>
+</div>
+
+<!-- ═══ ARCHIVE ═══ -->
+<div id="view_archive" class="content hidden">
+  <div class="view-header">
+    <h2 class="view-title">Job Archive <span style="font-size:.65rem;color:var(--muted);font-weight:600;">— Last 3 Days</span></h2>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+      <input type="text" id="arch_search" placeholder="Search job #, operator..." style="width:200px;font-size:.82rem;padding:7px 10px;" oninput="renderArchive()">
+      <select id="arch_op" style="width:180px;font-size:.82rem;padding:7px 10px;" onchange="renderArchive()">
+        <option value="">All Departments</option>
+        <option value="Scheduling">Scheduling</option>
+        <option value="Prepress">Prepress</option>
+        <option value="Press">Press</option>
+        <option value="Folding">Folding</option>
+        <option value="Bindery">Bindery</option>
+        <option value="Finishing">Finishing</option>
+        <option value="Mailing">Mailing</option>
+        <option value="Fulfillment">Fulfillment</option>
+        <option value="Shipping/Inventory">Shipping/Inventory</option>
+      </select>
+      <input type="date" id="arch_from" style="width:145px;font-size:.82rem;padding:7px 10px;" oninput="renderArchive()">
+      <span style="font-size:.75rem;color:var(--muted);">to</span>
+      <input type="date" id="arch_to" style="width:145px;font-size:.82rem;padding:7px 10px;" oninput="renderArchive()">
+      <button class="btn btn-secondary btn-sm" onclick="clearArchiveFilters()">✕ Clear</button>
+      <button class="btn btn-secondary btn-sm" onclick="exportArchive()">⬇ Export CSV</button>
+    </div>
+  </div>
+
+  <!-- Archive summary strip -->
+  <div class="arch-summary" id="arch_summary"></div>
+
+  <!-- Department sections -->
+  <div id="arch_prepress_section">
+    <div class="dept-header" style="margin-top:8px;">
+      <div class="dept-dot" style="background:#9b59b6"></div>
+      <div class="dept-title">Prepress</div>
+      <div class="dept-count" id="arch_prepress_count"></div>
+    </div>
+    <div class="arch-table-wrap" id="arch_prepress_table"></div>
+  </div>
+  <div id="arch_press_section">
+    <div class="dept-header" style="margin-top:16px;">
+      <div class="dept-dot" style="background:var(--press)"></div>
+      <div class="dept-title">Press</div>
+      <div class="dept-count" id="arch_press_count"></div>
+    </div>
+    <div class="arch-table-wrap" id="arch_press_table"></div>
+  </div>
+  <div id="arch_fold_section">
+    <div class="dept-header" style="margin-top:16px;">
+      <div class="dept-dot" style="background:var(--fold)"></div>
+      <div class="dept-title">Folding</div>
+      <div class="dept-count" id="arch_fold_count"></div>
+    </div>
+    <div class="arch-table-wrap" id="arch_fold_table"></div>
+  </div>
+  <div id="arch_bind_section">
+    <div class="dept-header" style="margin-top:16px;">
+      <div class="dept-dot" style="background:var(--bind)"></div>
+      <div class="dept-title">Bindery &amp; Finishing</div>
+      <div class="dept-count" id="arch_bind_count"></div>
+    </div>
+    <div class="arch-table-wrap" id="arch_bind_table"></div>
+  </div>
+  <div id="arch_mail_section">
+    <div class="dept-header" style="margin-top:16px;">
+      <div class="dept-dot" style="background:#3498db"></div>
+      <div class="dept-title">Mailing</div>
+      <div class="dept-count" id="arch_mail_count"></div>
+    </div>
+    <div class="arch-table-wrap" id="arch_mail_table"></div>
+  </div>
+  <div id="arch_ship_section">
+    <div class="dept-header" style="margin-top:16px;">
+      <div class="dept-dot" style="background:var(--gray)"></div>
+      <div class="dept-title">Shipping</div>
+      <div class="dept-count" id="arch_ship_count"></div>
+    </div>
+    <div class="arch-table-wrap" id="arch_ship_table"></div>
+  </div>
+</div>
+
+<!-- Hidden iOS camera input for QR scanning -->
+<input type="file" id="ios_qr_input" accept="image/*" capture="environment" style="display:none;">
+
+<!-- ═══ QR SCANNER OVERLAY ═══ -->
+<div id="scan_overlay" class="scan-overlay hidden">
+  <video id="scan_video" autoplay playsinline muted></video>
+  <canvas id="scan_canvas"></canvas>
+  <button class="scan-close" onclick="closeScanner()">✕</button>
+  <div class="scan-ui">
+    <div class="scan-field-label">Scanning: <span id="scan_field_label">—</span></div>
+    <!-- Wide viewfinder works for both 1D barcodes and QR codes -->
+    <div class="scan-viewfinder" style="width:300px;height:160px;">
+      <div class="scan-corner tl"></div>
+      <div class="scan-corner tr"></div>
+      <div class="scan-corner bl"></div>
+      <div class="scan-corner br"></div>
+      <div class="scan-line"></div>
+    </div>
+    <div class="scan-hint">Center barcode or QR code in the frame<br>Hold 4–8 inches away — camera will autofocus</div>
+  </div>
+</div>
+
+<!-- ═══ MODAL ═══ -->
+<div id="modal_overlay" class="modal-overlay hidden" onclick="closeModalOutside(event)">
+  <div class="modal-box" id="modal_box">
+    <div id="modal_content"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── LOGIN & ACCESS CONTROL ────────────────────────────────────────────────────
+// USERS: { username: { password, role, name, dept[] } }
+// dept: 'all' = full access | array of dept names restricts views
+// roles: 'admin' | 'manager' | 'operator'
+
+const USERS = {
+  // ── ADMIN ──────────────────────────────────────────────────
+  'admin':    { password:'epmp2026', role:'admin',    name:'Admin',    dept:'all' },
+
+  // ── MANAGERS (full access) ─────────────────────────────────
+  'manager':  { password:'mgr2026',  role:'manager',  name:'Manager',  dept:'all' },
+  'carlos':   { password:'mgr2026',  role:'manager',  name:'Carlos',   dept:'all' },
+  'ismael':   { password:'mgr2026',  role:'manager',  name:'Ismael',   dept:'all' },
+  'jorge':    { password:'mgr2026',  role:'manager',  name:'Jorge',    dept:'all' },
+  'frank':    { password:'mgr2026',  role:'manager',  name:'Frank',    dept:'all' },
+
+  // ── PREPRESS OPERATORS ─────────────────────────────────────
+  'aaron':    { password:'pp2026',   role:'operator', name:'Aaron',    dept:['prepress'] },
+  'nate':     { password:'pp2026',   role:'operator', name:'Nate',     dept:['prepress'] },
+  'emma':     { password:'pp2026',   role:'operator', name:'Emma',     dept:['prepress'] },
+  'humberto': { password:'pp2026',   role:'operator', name:'Humberto', dept:['prepress'] },
+
+  // ── PRESS OPERATORS ───────────────────────────────────────
+  'victor':   { password:'ps2026',   role:'operator', name:'Victor',   dept:['press'] },
+  'tony':     { password:'ps2026',   role:'operator', name:'Tony',     dept:['press'] },
+  'pepe':     { password:'ps2026',   role:'operator', name:'Pepe',     dept:['press'] },
+
+  // ── BINDERY OPERATORS ─────────────────────────────────────
+  'becky':    { password:'bn2026',   role:'operator', name:'Becky',    dept:['bindery'] },
+  'hector':   { password:'bn2026',   role:'operator', name:'Hector',   dept:['bindery'] },
+  'ruben':    { password:'bn2026',   role:'operator', name:'Ruben',    dept:['bindery'] },
+  'david':    { password:'bn2026',   role:'operator', name:'David',    dept:['bindery'] },
+  'leo':      { password:'bn2026',   role:'operator', name:'Leo',      dept:['bindery'] },
+  'paul':     { password:'bn2026',   role:'operator', name:'Paul',     dept:['bindery'] },
+};
+
+// Dept rules — which opType maps to which dept key
+const DEPT_MAP = {
+  press:    'Printing',
+  folding:  'Folding',
+  bindery:  'Binding',
+  prepress: 'Prepress'
+};
+
+let currentUser = null;
+
+function doLogin() {
+  const username = document.getElementById('login_user').value.trim().toLowerCase();
+  const password = document.getElementById('login_pass').value;
+  const err      = document.getElementById('login_error');
+  const user     = USERS[username];
+
+  if (user && user.password === password) {
+    currentUser = { username, ...user };
+    sessionStorage.setItem('mis_user',    username);
+    sessionStorage.setItem('mis_role',    user.role);
+    sessionStorage.setItem('mis_dept',    JSON.stringify(user.dept));
+    sessionStorage.setItem('mis_name',    user.name);
+
+    document.getElementById('login_overlay').style.display = 'none';
+    err.style.display = 'none';
+    applyAccessControl();
+    toast('Welcome, ' + user.name + ' ✓');
+  } else {
+    err.style.display = 'block';
+    document.getElementById('login_pass').value = '';
+    document.getElementById('login_pass').focus();
+  }
+}
+
+function applyAccessControl() {
+  if (!currentUser) return;
+  const dept = currentUser.dept;
+  const role = currentUser.role;
+
+  // Show logged-in user in header
+  const userTag = document.getElementById('user_tag');
+  if (userTag) userTag.textContent = currentUser.name + ' (' + role + ')';
+
+  // Admins and managers see everything
+  if (dept === 'all' || role === 'admin' || role === 'manager') return;
+
+  // Hide + New Job tab for non-scheduling operators
+  // Only Scheduling creates new jobs — others use "Begin Next Operation" on the card
+  const isScheduling = dept.includes('scheduling');
+  document.querySelectorAll('.ntab').forEach(btn => {
+    if (btn.textContent.includes('New Job')) {
+      btn.style.display = isScheduling ? '' : 'none';
+    }
+    // Hide Dashboard, Archive and Job Report from pure operators
+    if (role === 'operator') {
+      if (btn.textContent.includes('Dashboard') ||
+          btn.textContent.includes('Archive')   ||
+          btn.textContent.includes('Job Report')) {
+        btn.style.display = 'none';
+      }
+    }
+  });
+
+  // Prepress sees all departments
+  if (dept.includes('prepress')) return;
+
+  // All other operators — only see their dept section in Active Jobs
+  const deptSections = {
+    scheduling:  'dept_sched_section',
+    prepress:    'dept_prepress_section',
+    press:       'dept_press_section',
+    folding:     'dept_fold_section',
+    bindery:     'dept_bind_section',
+    finishing:   'dept_finish_section',
+    mailing:     'dept_mail_section',
+    fulfillment: 'dept_fulfill_section',
+    shipping:    'dept_ship_section'
+  };
+
+  Object.entries(deptSections).forEach(([key, id]) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    // Always show Scheduling section so operators can see the master job card
+    if (key === 'scheduling') return;
+    if (!dept.includes(key)) el.style.display = 'none';
+  });
+}
+
+function doLogout() {
+  if (confirm('Sign out of Print MIS?')) {
+    sessionStorage.clear();
+    currentUser = null;
+
+    // Reset any hidden elements
+    document.querySelectorAll('.ntab').forEach(btn => btn.style.display = '');
+    ['dept_sched_section','dept_prepress_section','dept_press_section',
+     'dept_fold_section','dept_bind_section','dept_finish_section',
+     'dept_mail_section','dept_fulfill_section','dept_ship_section'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.style.display = '';
+    });
+
+    document.getElementById('login_user').value = '';
+    document.getElementById('login_pass').value = '';
+    document.getElementById('login_error').style.display = 'none';
+    document.getElementById('login_overlay').style.display = 'flex';
+  }
+}
+
+function checkLogin() {
+  const username = sessionStorage.getItem('mis_user');
+  if (username && USERS[username]) {
+    currentUser = { username, ...USERS[username] };
+    document.getElementById('login_overlay').style.display = 'none';
+    applyAccessControl();
+  }
+}
+
+
+let cameraStream    = null;
+let scanAnimFrame   = null;
+let scanTargetField = null;
+
+// Detect mobile (iOS / Android) — use file capture; desktop uses live scanner
+const isMobileDevice = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+function openScanner(fieldId, fieldLabel) {
+  scanTargetField = fieldId;
+  if (isMobileDevice) {
+    openMobileScanner(fieldId, fieldLabel);
+  } else {
+    openLiveScanner(fieldId, fieldLabel);
+  }
+}
+
+// ── MOBILE: live getUserMedia with autofocus (works iOS 14.3+ over HTTPS) ────
+function openMobileScanner(fieldId, fieldLabel) {
+  // Try live scanner first — better UX and autofocus
+  if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+    openLiveScanner(fieldId, fieldLabel);
+  } else {
+    // Hard fallback for very old browsers — file input
+    openFileInputScanner(fieldId, fieldLabel);
+  }
+}
+
+// File input fallback (old browsers only)
+function openFileInputScanner(fieldId, fieldLabel) {
+  const inp = document.getElementById('ios_qr_input');
+  inp.value = '';
+  inp.onchange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    toast('Processing barcode…');
+    processWithDecoders(file);
+  };
+  inp.click();
+}
+
+function processWithDecoders(file) {
+  // Method 1 — BarcodeDetector (iOS 17+ / Android Chrome native)
+  if ('BarcodeDetector' in window) {
+    const detector = new BarcodeDetector({
+      formats: ['qr_code','code_39','code_128','ean_13','ean_8','data_matrix','pdf417']
+    });
+    createImageBitmap(file).then(bitmap => {
+      detector.detect(bitmap).then(barcodes => {
+        if (barcodes.length > 0) { onQRDetected(barcodes[0].rawValue); return; }
+        processWithLibraries(file); // fall through
+      }).catch(() => processWithLibraries(file));
+    }).catch(() => processWithLibraries(file));
+    return;
+  }
+  processWithLibraries(file);
+}
+
+function processWithLibraries(file) {
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    const img = new Image();
+    img.onload = () => {
+      // Scale down large images for reliable decoding
+      const MAX = 1024;
+      let w = img.width, h = img.height;
+      if (w > MAX || h > MAX) {
+        const scale = MAX / Math.max(w, h);
+        w = Math.round(w * scale);
+        h = Math.round(h * scale);
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, w, h);
+
+      // --- Try QR code first with jsQR ---
+      if (typeof jsQR === 'function') {
+        const imageData = ctx.getImageData(0, 0, w, h);
+        let code = jsQR(imageData.data, w, h, { inversionAttempts: 'dontInvert' });
+        if (!code) code = jsQR(imageData.data, w, h, { inversionAttempts: 'attemptBoth' });
+        if (code && code.data) { onQRDetected(code.data); return; }
+      }
+
+      // --- Try Code 39 + other 1D barcodes with ZXing ---
+      if (typeof ZXing !== 'undefined') {
+        const hints = new Map();
+        // Support Code39, Code128, EAN, DataMatrix and more
+        hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
+          ZXing.BarcodeFormat.CODE_39,
+          ZXing.BarcodeFormat.CODE_128,
+          ZXing.BarcodeFormat.EAN_13,
+          ZXing.BarcodeFormat.EAN_8,
+          ZXing.BarcodeFormat.QR_CODE,
+          ZXing.BarcodeFormat.DATA_MATRIX
+        ]);
+        hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
+
+        const luminanceSource = new ZXing.HTMLCanvasElementLuminanceSource(canvas);
+        const binarizer       = new ZXing.HybridBinarizer(luminanceSource);
+        const bitmapImage     = new ZXing.BinaryBitmap(binarizer);
+        const reader          = new ZXing.MultiFormatReader();
+        reader.setHints(hints);
+        try {
+          const result = reader.decode(bitmapImage);
+          if (result && result.getText()) {
+            onQRDetected(result.getText()); return;
+          }
+        } catch (e) { /* no barcode found */ }
+      }
+
+      toast('Barcode not found. Hold steady, ensure good lighting, fill the frame.');
+    };
+    img.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+// ── LIVE SCANNER: getUserMedia with autofocus ────────────────────────────────
+function openLiveScanner(fieldId, fieldLabel) {
+  scanTargetField = fieldId;
+  document.getElementById('scan_field_label').textContent = fieldLabel;
+  document.getElementById('scan_overlay').classList.remove('hidden');
+
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    alert('Camera not available on this browser.'); closeScanner(); return;
+  }
+
+  navigator.mediaDevices.getUserMedia({
+    video: {
+      facingMode: { ideal: 'environment' },  // rear camera
+      width:      { ideal: 1920 },
+      height:     { ideal: 1080 },
+      focusMode:  { ideal: 'continuous' },   // continuous autofocus
+      zoom:       { ideal: 1 }
+    }
+  })
+  .then(stream => {
+    cameraStream = stream;
+    const video = document.getElementById('scan_video');
+    video.srcObject = stream;
+
+    // Enable continuous autofocus on the camera track if supported
+    const track = stream.getVideoTracks()[0];
+    if (track && track.getCapabilities) {
+      const caps = track.getCapabilities();
+      const constraints = {};
+      if (caps.focusMode && caps.focusMode.includes('continuous')) {
+        constraints.advanced = [{ focusMode: 'continuous' }];
+      }
+      if (caps.zoom) {
+        constraints.advanced = constraints.advanced || [];
+        constraints.advanced.push({ zoom: 1.0 });
+      }
+      if (constraints.advanced) {
+        track.applyConstraints(constraints).catch(() => {});
+      }
+    }
+
+    video.play().then(() => startScanLoop());
+  })
+  .catch(err => {
+    let msg = 'Could not access camera.';
+    if (err.name === 'NotAllowedError')   msg = 'Camera permission denied.\nGo to Settings → Safari → Camera and set to Allow.';
+    if (err.name === 'NotFoundError')     msg = 'No camera found.';
+    if (err.name === 'NotSupportedError') msg = 'Camera requires HTTPS. Open via Google Sites link, not a local file.';
+    alert(msg);
+    closeScanner();
+  });
+}
+
+function startScanLoop() {
+  const video  = document.getElementById('scan_video');
+  const canvas = document.getElementById('scan_canvas');
+  const ctx    = canvas.getContext('2d');
+  function tick() {
+    if (!cameraStream) return;
+    if (video.readyState === video.HAVE_ENOUGH_DATA) {
+      canvas.width  = video.videoWidth;
+      canvas.height = video.videoHeight;
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      // Try jsQR for QR codes
+      if (typeof jsQR === 'function') {
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const code = jsQR(imageData.data, canvas.width, canvas.height, { inversionAttempts: 'dontInvert' });
+        if (code && code.data) { onQRDetected(code.data); return; }
+      }
+
+      // Try ZXing for Code 39 and other 1D barcodes
+      if (typeof ZXing !== 'undefined') {
+        try {
+          const hints = new Map();
+          hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
+            ZXing.BarcodeFormat.CODE_39, ZXing.BarcodeFormat.CODE_128,
+            ZXing.BarcodeFormat.QR_CODE, ZXing.BarcodeFormat.EAN_13
+          ]);
+          hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
+          const lum    = new ZXing.HTMLCanvasElementLuminanceSource(canvas);
+          const bin    = new ZXing.HybridBinarizer(lum);
+          const bitmap = new ZXing.BinaryBitmap(bin);
+          const zxReader = new ZXing.MultiFormatReader();
+          zxReader.setHints(hints);
+          const result = zxReader.decode(bitmap);
+          if (result && result.getText()) { onQRDetected(result.getText()); return; }
+        } catch(e) { /* no barcode found this frame */ }
+      }
+    }
+    scanAnimFrame = requestAnimationFrame(tick);
+  }
+  scanAnimFrame = requestAnimationFrame(tick);
+}
+
+// ── SHARED: result handler ───────────────────────────────────────────────────
+function onQRDetected(value) {
+  const field = document.getElementById(scanTargetField);
+  if (field) {
+    field.value = value;
+    field.dispatchEvent(new Event('input',  { bubbles: true }));
+    field.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+  if (navigator.vibrate) navigator.vibrate([80, 40, 80]);
+  const flash = document.createElement('div');
+  flash.className = 'scan-success-flash';
+  document.body.appendChild(flash);
+  setTimeout(() => flash.remove(), 600);
+  closeScanner();
+  toast('✓ Scanned → ' + value.slice(0, 32) + (value.length > 32 ? '…' : ''));
+}
+
+function closeScanner() {
+  if (cameraStream) { cameraStream.getTracks().forEach(t => t.stop()); cameraStream = null; }
+  if (scanAnimFrame) { cancelAnimationFrame(scanAnimFrame); scanAnimFrame = null; }
+  const video = document.getElementById('scan_video');
+  if (video) video.srcObject = null;
+  document.getElementById('scan_overlay').classList.add('hidden');
+  scanTargetField = null;
+}
+
+// ── CONSTANTS ─────────────────────────────────────────────────────────────────
+const SHEET_URL = 'https://script.google.com/macros/s/AKfycbx_UJYE99POTtl0kP7GOqTgLpyPphFqueZowlxoyfQubhKPB78LIkrwPpLG3gmt-a5e0A/exec';
+
+// Returns current local time as datetime-local string (fixes timezone offset bug)
+function localNow() {
+  const now = new Date();
+  return new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0,16);
+}
+
+const MACHINES = {
+  'Scheduling':          ['Job Intake & Scheduling'],
+  'Prepress':            ['Artwork Prep & Proof Approval','Imposition & Plate Making','Database Management'],
+  'Press':               ['Heidelberg Press 1','Heidelberg Press 2','Heidelberg Press 3','Shinohara Press 4'],
+  'Folding':             ['F1-MBO-B26-1','F2-MBO-B26-2','F3-MBO-B30','F4-STAHL-STA1','F5-STAHL-STA2','F6-STAHL-B14','F7-BAUM-2020','F8-STAHL-B14'],
+  'Bindery':             ['Cutting','Die-Cutting','Scoring & Creasing','Collating','Binding','Stitching'],
+  'Finishing':           ['Outsourcing','Kitting','Shrink-Wrapping','Laminating','UV Coating'],
+  'Mailing':             ['Inkjet Addressing','Inserting','Sealing & Tabbing'],
+  'Fulfillment':         ['Fulfillment Services'],
+  'Shipping/Inventory':  ['Out for Delivery','Hold for Inventory']
+};
+
+// Departments that use "In Progress" flow (no unit logging, just Complete + handoff)
+const SIMPLE_DEPTS = ['Prepress', 'Fulfillment', 'Shipping/Inventory'];
+
+// Valid next departments from each handoff dept
+const NEXT_OP_DEPTS = {
+  'Scheduling':        ['Prepress','Press','Folding','Bindery','Finishing','Mailing','Fulfillment','Shipping/Inventory'],
+  'Prepress':          ['Press','Folding','Bindery','Finishing','Mailing','Fulfillment','Shipping/Inventory'],
+  'Fulfillment':       ['Shipping/Inventory'],
+  'Shipping/Inventory': []  // end of line
+};
+
+let chartUph = null, chartUnits = null;
+
+// Sets a datetime-local input to current local time
+function setNow(id, callback) {
+  document.getElementById(id).value = localNow();
+  if (callback) callback();
+}
+
+function getData()  { return JSON.parse(localStorage.getItem('mis_jobs') || '[]'); }
+function setData(d) { localStorage.setItem('mis_jobs', JSON.stringify(d)); }
+function getJob(id) { return getData().find(j => j.id === id); }
+function saveJob(job) { const d = getData(); const i = d.findIndex(j => j.id === job.id); if (i>=0) d[i]=job; else d.push(job); setData(d); }
+
+// ── VIEWS ─────────────────────────────────────────────────────────────────────
+function showView(v, el) {
+  document.querySelectorAll('.ntab').forEach(t => t.classList.remove('active'));
+  if (el) el.classList.add('active');
+  ['active','new','dash','archive'].forEach(n => document.getElementById('view_'+n).classList.toggle('hidden', n!==v));
+  if (v === 'active')  renderActiveJobs();
+  if (v === 'dash')    renderDashboard();
+  if (v === 'archive') renderArchive();
+  if (v === 'report')  document.getElementById('report_job_input') && document.getElementById('report_job_input').focus();
+}
+
+// ── FORM ──────────────────────────────────────────────────────────────────────
+function onOpChange() {
+  const op  = document.getElementById('f_optype').value;
+  const sel = document.getElementById('f_machine');
+  sel.innerHTML = '<option value="">— Select Operation —</option>';
+  if (op && MACHINES[op]) {
+    MACHINES[op].forEach(m => {
+      const o = document.createElement('option');
+      o.value = m; o.textContent = m; sel.appendChild(o);
+    });
+  }
+
+  // Show Colors only for Press
+  document.getElementById('field_colors').classList.toggle('hidden', op !== 'Press');
+  // Show Fold Type only for Folding
+  document.getElementById('field_fold').classList.toggle('hidden', op !== 'Folding');
+  // Show Scheduling panel only for Scheduling
+  document.getElementById('sched_panel').classList.toggle('hidden', op !== 'Scheduling');
+  // Show Fulfillment notes only for Fulfillment
+  document.getElementById('field_fulfillment_notes').classList.toggle('hidden', op !== 'Fulfillment');
+  // Show Shipping function only for Shipping/Inventory
+  document.getElementById('field_shipping_func').classList.toggle('hidden', op !== 'Shipping/Inventory');
+  // Hide MR start time for Scheduling (uses SCHEDULED button instead)
+  document.getElementById('mr_start_panel').classList.toggle('hidden', op === 'Scheduling');
+  // Change submit button text for Scheduling
+  const btn = document.getElementById('btn_create_job');
+  if (op === 'Scheduling') {
+    btn.textContent = '📅 Schedule This Job';
+    btn.onclick = () => createScheduledJob();
+  } else {
+    btn.textContent = '✓ Create Job & Start Make Ready';
+    btn.onclick = () => createJob();
+  }
+}
+
+// ── AUTO-FILL FROM EPMP JOB STATUS SHEET ─────────────────────
+let _jobLookupTimer = null;
+
+function scheduleJobLookup(val) {
+  clearTimeout(_jobLookupTimer);
+  const status = document.getElementById('job_lookup_status');
+  if (!val || val.trim().length < 3) { if(status) status.textContent = ''; return; }
+  if (status) status.textContent = '⏳ Looking up job...';
+  _jobLookupTimer = setTimeout(() => lookupJobFromSheet(val.trim()), 800);
+}
+
+function lookupJobFromSheet(jobNum) {
+  const status = document.getElementById('job_lookup_status');
+  fetch(SHEET_URL + '?action=getJob&jobNumber=' + encodeURIComponent(jobNum))
+    .then(r => r.json())
+    .then(data => {
+      if (data.found) {
+        autoFillJobForm(data);
+        if (status) status.innerHTML = '<span style="color:var(--green);">✓ Auto-filled from EPMP Job Status Sheet</span>';
+      } else {
+        if (status) status.innerHTML = '<span style="color:var(--muted);">Job not found in sheet — enter details manually</span>';
+      }
+    })
+    .catch(() => {
+      if (status) status.innerHTML = '<span style="color:var(--muted);">Sheet unavailable — enter details manually</span>';
+    });
+}
+
+function autoFillJobForm(data) {
+  const set = (id, val) => { const el = document.getElementById(id); if (el && val) el.value = val; };
+  set('f_po',           data.poNumber);
+  set('f_qty',          data.qty);
+  set('f_customer',     data.customer);
+  set('f_due_date',     data.dueDate);   // format: yyyy-MM-dd
+  set('f_product_type', data.jobName);
+  set('f_sched_notes',  data.jobName);
+  // Fill PO into scheduling form too
+  const poEl = document.getElementById('f_po');
+  if (poEl && data.poNumber) poEl.value = data.poNumber;
+  toast('✓ Job data loaded from EPMP Job Status Sheet');
+}
+
+
+// ── COMPLETE SIMPLE OPERATION (Prepress, Fulfillment, Shipping) ──
+function completeSimpleOp(jobId) {
+  const all = getData();
+  const job = all.find(j => j.id === jobId);
+  if (!job) return;
+
+  const now   = localNow();
+  const start = parseLocalTime(job.mrStart);
+  job.status    = 'complete';
+  job.mrStop    = now;
+  job.mrHrs     = start ? Math.max(0, (new Date() - start) / 3600000) : 0;
+  job.prodHrs   = 0;
+  job.netProdHrs= 0;
+  job.totalUnits= 0;
+  job.uph       = 0;
+  setData(all);
+
+  // Post completed operation to Google Sheets
+  fetch(SHEET_URL, {
+    method: 'POST',
+    body: JSON.stringify({
+      date: job.date, jobNumber: job.jobNumber, poNumber: job.poNumber,
+      operator: job.operator, opType: job.opType, machine: job.machine,
+      qty: job.qty, mrStart: job.mrStart, mrStop: now,
+      mrHrs: job.mrHrs.toFixed(2),
+      prodStart:'', prodStop:'', prodHrs:0, netProdHrs:0,
+      totalUnits:0, uph:0, totalDowntimeHrs:0, downtimeReasons:''
+    }),
+    headers: { 'Content-Type': 'application/json' }
+  }).catch(() => {});
+
+  renderActiveJobs();
+  toast('✓ ' + job.opType + ' completed for Job ' + job.jobNumber);
+
+  // If this dept supports handoff, open Begin Next Operation modal
+  if (NEXT_OP_DEPTS[job.opType] && NEXT_OP_DEPTS[job.opType].length > 0) {
+    // Find master scheduling job to open handoff from
+    const masterJob = job.masterJobId
+      ? all.find(j => j.id === job.masterJobId)
+      : null;
+    setTimeout(() => {
+      beginNextOperation(masterJob ? masterJob.id : job.id, job.opType);
+    }, 300);
+  }
+}
+
+
+let _nextOpMasterJobId = null;
+let _nextOpFromDept    = 'Scheduling';
+
+function beginNextOperation(masterJobId, fromDept) {
+  _nextOpMasterJobId = masterJobId;
+  _nextOpFromDept    = fromDept || 'Scheduling';
+
+  const job = getData().find(j => j.id === masterJobId);
+  if (!job) return;
+
+  document.getElementById('next_op_job_info').innerHTML =
+    `<strong>Job ${job.jobNumber}</strong> &nbsp;·&nbsp; ${job.customer||''}
+     &nbsp;·&nbsp; Qty: ${(job.qty||0).toLocaleString()}
+     &nbsp;·&nbsp; Due: ${job.dueDate||'—'}`;
+
+  // Filter available departments based on where we're coming from
+  const availableDepts = NEXT_OP_DEPTS[_nextOpFromDept] ||
+    ['Prepress','Press','Folding','Bindery','Finishing','Mailing','Fulfillment','Shipping/Inventory'];
+
+  const deptSel = document.getElementById('next_op_dept');
+  deptSel.innerHTML = '<option value="">— Select Department —</option>';
+  availableDepts.forEach(d => {
+    const o = document.createElement('option');
+    o.value = d; o.textContent = d; deptSel.appendChild(o);
+  });
+
+  document.getElementById('next_op_operation').innerHTML = '<option value="">— Select Department First —</option>';
+  document.getElementById('next_op_operator').value = '';
+  document.getElementById('next_op_modal').classList.remove('hidden');
+}
+
+function onNextOpDeptChange() {
+  const dept = document.getElementById('next_op_dept').value;
+  const sel  = document.getElementById('next_op_operation');
+  sel.innerHTML = '<option value="">— Select Operation —</option>';
+  if (dept && MACHINES[dept]) {
+    MACHINES[dept].forEach(m => {
+      const o = document.createElement('option');
+      o.value = m; o.textContent = m; sel.appendChild(o);
+    });
+  }
+}
+
+function confirmBeginNextOp() {
+  const dept      = document.getElementById('next_op_dept').value;
+  const operation = document.getElementById('next_op_operation').value;
+  const operator  = document.getElementById('next_op_operator').value;
+  if (!dept || !operation || !operator) { toast('Please select Department, Operation and Operator'); return; }
+
+  const masterJob = getData().find(j => j.id === _nextOpMasterJobId);
+  if (!masterJob) return;
+
+  const now = localNow();
+  const linkedJob = {
+    id          : Date.now().toString(),
+    date        : now.slice(0, 10),
+    status      : 'makeready',
+    masterJobId : masterJob.id,
+    operator,
+    jobNumber   : masterJob.jobNumber,
+    poNumber    : masterJob.poNumber   || '',
+    opType      : dept,
+    machine     : operation,
+    qty         : masterJob.qty        || 0,
+    pressSheets : masterJob.pressSheets|| 0,
+    pages:0, forms:0, sigs:0,
+    paperSize   : masterJob.pressSize  || '',
+    paperType   : masterJob.paperWeight|| '',
+    colors:'', foldType:'',
+    mrStart     : now,
+    totalUnits:0, totalDT:0,
+    prodLogs:[], downtime:[],
+    mrHrs:0, prodHrs:0, netProdHrs:0, uph:0
+  };
+
+  const all = getData();
+  all.push(linkedJob);
+  setData(all);
+  document.getElementById('next_op_modal').classList.add('hidden');
+  _nextOpMasterJobId = null;
+  renderActiveJobs();
+  toast('✓ ' + dept + ' started for Job ' + masterJob.jobNumber + ' — assigned to ' + operator);
+}
+
+// ── PAPER TYPE OTHER TOGGLE ───────────────────────────────────
+function onPaperTypeChange() {
+  const sel   = document.getElementById('f_paper_type_sel');
+  const wrap  = document.getElementById('f_paper_type_other_wrap');
+  const other = document.getElementById('f_paper_type_other');
+  const isOther = sel.value === 'Other';
+  wrap.classList.toggle('hidden', !isOther);
+  if (isOther) other.focus();
+}
+
+
+// ── PRESS SHEET CALCULATOR ────────────────────────────────────
+function calcPressSheets() {
+  const qty      = parseInt(document.getElementById('f_qty').value) || 0;
+  const upPress  = parseInt(document.getElementById('f_up_on_press').value) || 1;
+  const wastePct = parseFloat(document.getElementById('f_waste_pct').value) || 0;
+  if (!qty) { toast('Enter Quantity first'); return; }
+  const base  = Math.ceil(qty / upPress);
+  const waste = Math.ceil(base * (wastePct / 100));
+  const total = base + waste;
+  document.getElementById('f_calc_press_sheets').value = total;
+  document.getElementById('f_press_sheets').value      = total;
+  toast('Press sheets: ' + total.toLocaleString() + ' (' + base.toLocaleString() + ' base + ' + waste.toLocaleString() + ' waste)');
+}
+
+// ── CREATE SCHEDULED JOB (Scheduling dept) ────────────────────
+function createScheduledJob() {
+  const operator    = document.getElementById('f_operator').value;
+  const jobNumber   = document.getElementById('f_job').value.trim();
+  const poNumber    = document.getElementById('f_po').value.trim();
+  const customer    = document.getElementById('f_customer').value.trim();
+  const dueDate     = document.getElementById('f_due_date').value;
+  const jobDesc     = document.getElementById('f_product_type').value.trim();
+  const finishedSize= document.getElementById('f_finished_size').value.trim();
+  const qty         = parseInt(document.getElementById('f_qty').value) || 0;
+
+  // Material Requisition fields
+  const mrProductType = document.getElementById('f_mr_product_type').value;
+  const paperTypeSel  = document.getElementById('f_paper_type_sel').value;
+  const paperWeight   = paperTypeSel === 'Other'
+    ? document.getElementById('f_paper_type_other').value.trim()
+    : paperTypeSel;
+  const parentSize    = document.getElementById('f_parent_size').value.trim();
+  const parentSheets  = parseInt(document.getElementById('f_parent_sheets').value) || 0;
+  const pressSize     = document.getElementById('f_press_size').value.trim();
+  const pressSheets   = parseInt(document.getElementById('f_press_sheets').value) || 0;
+  const pages         = parseInt(document.getElementById('f_pages').value) || 0;
+  const sigs          = parseInt(document.getElementById('f_sched_sigs').value) || 0;
+  const forms         = parseInt(document.getElementById('f_sched_forms').value) || 0;
+  const upOnPress     = parseInt(document.getElementById('f_up_on_press').value) || 0;
+  const wastePct      = parseFloat(document.getElementById('f_waste_pct').value) || 0;
+  const calcSheets    = parseInt(document.getElementById('f_calc_press_sheets').value) || 0;
+  const printProcess  = document.querySelector('input[name="print_process"]:checked')?.value || '';
+  const notes         = document.getElementById('f_sched_notes').value.trim();
+
+  if (!operator || !jobNumber) { alert('Operator and Job Number are required.'); return; }
+
+  const now = localNow();
+  const job = {
+    id: Date.now().toString(),
+    date: now.slice(0,10),
+    status: 'scheduled',
+    scheduledAt: now,
+    operator, jobNumber, poNumber, customer, dueDate,
+    opType: 'Scheduling',
+    machine: 'Job Intake & Scheduling',
+    jobDesc, finishedSize, qty,
+    mrProductType, paperWeight, parentSize, parentSheets,
+    pressSize, pressSheets: calcSheets || pressSheets,
+    pages, sigs, forms, upOnPress, wastePct,
+    printProcess, notes,
+    totalUnits: 0, totalDT: 0, prodLogs: [], downtime: []
+  };
+
+  const all = getData();
+  all.push(job);
+  setData(all);
+  resetNewForm();
+  showView('active', document.querySelectorAll('.ntab')[0]);
+  renderActiveJobs();
+  toast('✓ Job ' + jobNumber + ' scheduled!');
+}
+
+// ── MATERIAL REQUISITION ──────────────────────────────────────
+function openMR(jobId) {
+  const job = getData().find(j => j.id === jobId);
+  if (!job) return;
+  const today = localToday();
+  document.getElementById('mr_preview').innerHTML = `
+    <div style="font-family:Arial,sans-serif;">
+      <div style="text-align:center;border-bottom:2px solid #1a1a2e;padding-bottom:10px;margin-bottom:14px;">
+        <div style="font-size:1.3rem;font-weight:900;color:#1a1a2e;">EPMP</div>
+        <div style="font-size:1rem;font-weight:700;letter-spacing:.1em;">MATERIAL REQUISITION</div>
+      </div>
+      <table style="width:100%;border-collapse:collapse;font-size:.85rem;">
+        <tr><td style="padding:6px;font-weight:700;width:45%;border-bottom:1px solid #eee;">Job Number:</td><td style="padding:6px;border-bottom:1px solid #eee;">${job.jobNumber}</td></tr>
+        <tr><td style="padding:6px;font-weight:700;border-bottom:1px solid #eee;">Customer:</td><td style="padding:6px;border-bottom:1px solid #eee;">${job.customer||'—'}</td></tr>
+        <tr><td style="padding:6px;font-weight:700;border-bottom:1px solid #eee;">Date of Request:</td><td style="padding:6px;border-bottom:1px solid #eee;">${today}</td></tr>
+        <tr><td style="padding:6px;font-weight:700;border-bottom:1px solid #eee;">Due Date:</td><td style="padding:6px;border-bottom:1px solid #eee;">${job.dueDate||'—'}</td></tr>
+        <tr><td style="padding:6px;font-weight:700;border-bottom:1px solid #eee;">Quantity:</td><td style="padding:6px;border-bottom:1px solid #eee;">${(job.qty||0).toLocaleString()}</td></tr>
+        <tr><td style="padding:6px;font-weight:700;border-bottom:1px solid #eee;">Press Sheets Required:</td><td style="padding:6px;border-bottom:1px solid #eee;font-weight:700;color:#e74c3c;">${(job.pressSheets||0).toLocaleString()}</td></tr>
+        <tr><td style="padding:6px;font-weight:700;border-bottom:1px solid #eee;">Paper Weight:</td><td style="padding:6px;border-bottom:1px solid #eee;">${job.paperWeight||'—'}</td></tr>
+        <tr><td style="padding:6px;font-weight:700;border-bottom:1px solid #eee;">Parent Sheet Size:</td><td style="padding:6px;border-bottom:1px solid #eee;">${job.parentSize||'—'}</td></tr>
+        <tr><td style="padding:6px;font-weight:700;border-bottom:1px solid #eee;">Press Sheet Size:</td><td style="padding:6px;border-bottom:1px solid #eee;">${job.pressSize||'—'}</td></tr>
+        <tr><td style="padding:6px;font-weight:700;border-bottom:1px solid #eee;">Up on Press:</td><td style="padding:6px;border-bottom:1px solid #eee;">${job.upOnPress||'—'}</td></tr>
+        <tr><td style="padding:6px;font-weight:700;border-bottom:1px solid #eee;">Print Process:</td><td style="padding:6px;border-bottom:1px solid #eee;">${job.printProcess||'—'}</td></tr>
+        <tr><td style="padding:6px;font-weight:700;">Requested By:</td><td style="padding:6px;">${job.operator}</td></tr>
+      </table>
+      <div style="margin-top:16px;padding-top:12px;border-top:1px solid #eee;font-size:.75rem;color:#888;">
+        Warehouse Manager: Please pull material and confirm availability before production begins.
+      </div>
+    </div>`;
+  document.getElementById('mr_modal').classList.remove('hidden');
+  document.getElementById('mr_modal').dataset.jobId = jobId;
+}
+
+function printMR() {
+  const preview = document.getElementById('mr_preview').innerHTML;
+  const win = window.open('', '_blank');
+  win.document.write('<html><head><title>Material Requisition</title><style>body{font-family:Arial,sans-serif;padding:20px;} @media print{body{padding:0;}}</style></head><body>' + preview + '</body></html>');
+  win.document.close();
+  win.focus();
+  setTimeout(() => win.print(), 500);
+}
+
+function saveMRtoDrive() {
+  const jobId = document.getElementById('mr_modal').dataset.jobId;
+  const job   = getData().find(j => j.id === jobId);
+  if (!job) return;
+  fetch(SHEET_URL, {
+    method: 'POST',
+    body: JSON.stringify({ action: 'saveMR', job }),
+    headers: { 'Content-Type': 'application/json' }
+  }).then(() => toast('✓ MR saved to Drive')).catch(() => toast('MR print saved locally — Drive save failed'));
+  printMR();
+}
+
+// ── JOB REPORT (pulls from Google Sheets) ─────────────────────
+function loadJobReport() {
+  const jobNum = document.getElementById('report_job_input').value.trim();
+  if (!jobNum) { toast('Enter a job number first'); return; }
+  const el = document.getElementById('report_content');
+  el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted);">⏳ Loading report from Google Sheets...</div>';
+
+  fetch(SHEET_URL + '?action=jobReport&jobNumber=' + encodeURIComponent(jobNum))
+    .then(r => r.json())
+    .then(data => renderJobReport(jobNum, data))
+    .catch(() => {
+      // Fallback: show local data only
+      const local = getData().filter(j => j.jobNumber === jobNum);
+      renderJobReport(jobNum, { rows: local, source: 'local' });
+    });
+}
+
+function renderJobReport(jobNum, data) {
+  const rows   = data.rows || [];
+  const source = data.source || 'sheets';
+  const el     = document.getElementById('report_content');
+
+  if (!rows.length) {
+    el.innerHTML = `<div style="text-align:center;padding:40px;color:var(--muted);">No production data found for <strong>${jobNum}</strong></div>`;
+    return;
+  }
+
+  // Find scheduling record for job header
+  const schedRow = rows.find(r => r.opType === 'Scheduling' || r.Department === 'Scheduling');
+  const deptColors = {
+    'Scheduling':'#2ecc71','Prepress':'#9b59b6','Press':'#e74c3c',
+    'Folding':'#f0a500','Bindery':'#00c2a8','Finishing':'#1abc9c',
+    'Mailing':'#3498db','Fulfillment':'#e67e22','Shipping/Inventory':'#95a5a6'
+  };
+
+  const deptOrder = ['Scheduling','Prepress','Press','Folding','Bindery','Finishing','Mailing','Fulfillment','Shipping/Inventory'];
+  const byDept    = {};
+  rows.forEach(r => {
+    const d = r.opType || r.Department || 'Unknown';
+    if (!byDept[d]) byDept[d] = [];
+    byDept[d].push(r);
+  });
+
+  let html = `
+    <div style="border:2px solid #1a1a2e;border-radius:8px;overflow:hidden;font-family:'Barlow',sans-serif;">
+      <div style="background:#1a1a2e;color:#fff;padding:14px 18px;display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <div style="font-size:1.1rem;font-weight:800;letter-spacing:.08em;">JOB ${jobNum}</div>
+          <div style="font-size:.72rem;opacity:.7;margin-top:2px;">Production Report · ${source === 'local' ? 'Local Data' : 'Google Sheets'}</div>
+        </div>
+        <div style="text-align:right;font-size:.75rem;opacity:.8;">${localToday()}</div>
+      </div>`;
+
+  if (schedRow) {
+    html += `
+      <div style="background:#f8f8f8;padding:12px 18px;border-bottom:1px solid #eee;display:grid;grid-template-columns:repeat(3,1fr);gap:8px;font-size:.78rem;">
+        <div><span style="font-weight:700;color:#555;">Customer:</span> ${schedRow.customer||schedRow.Customer||'—'}</div>
+        <div><span style="font-weight:700;color:#555;">Due Date:</span> ${schedRow.dueDate||schedRow['Due Date']||'—'}</div>
+        <div><span style="font-weight:700;color:#555;">Qty:</span> ${(schedRow.qty||schedRow.Qty||0).toLocaleString()}</div>
+        <div><span style="font-weight:700;color:#555;">Product:</span> ${schedRow.productType||schedRow['Product Type']||'—'}</div>
+        <div><span style="font-weight:700;color:#555;">Process:</span> ${schedRow.printProcess||schedRow['Print Process']||'—'}</div>
+        <div><span style="font-weight:700;color:#555;">Press Sheets:</span> ${(schedRow.pressSheets||0).toLocaleString()}</div>
+      </div>`;
+  }
+
+  deptOrder.forEach(dept => {
+    if (!byDept[dept]) return;
+    const color = deptColors[dept] || '#888';
+    html += `<div style="border-bottom:1px solid #eee;">
+      <div style="background:${color}22;border-left:4px solid ${color};padding:8px 16px;font-weight:700;font-size:.8rem;color:${color};">${dept.toUpperCase()}</div>`;
+    byDept[dept].forEach(r => {
+      html += `<div style="padding:8px 16px 8px 20px;border-bottom:1px solid #f0f0f0;font-size:.78rem;display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px;">
+        <div><span style="color:#888;font-size:.65rem;">OPERATOR</span><br>${r.operator||r.Operator||'—'}</div>
+        <div><span style="color:#888;font-size:.65rem;">OPERATION</span><br>${r.machine||r.Operation||'—'}</div>
+        <div><span style="color:#888;font-size:.65rem;">MR HRS</span><br>${r.mrHrs||r['MR Hrs']||'—'}</div>
+        <div><span style="color:#888;font-size:.65rem;">PROD HRS</span><br>${r.netProdHrs||r['Net Prod Hrs']||'—'}</div>
+        <div><span style="color:#888;font-size:.65rem;">UNITS</span><br>${(r.totalUnits||r['Total Units']||0).toLocaleString()}</div>
+        <div><span style="color:#888;font-size:.65rem;">U/HR</span><br>${r.uph||r['Units/hr']||'—'}</div>
+        <div><span style="color:#888;font-size:.65rem;">DOWNTIME HRS</span><br>${r.totalDowntimeHrs||r['Downtime Hrs']||'0'}</div>
+        <div><span style="color:#888;font-size:.65rem;">DATE</span><br>${r.date||r.Date||'—'}</div>
+      </div>`;
+    });
+    html += '</div>';
+  });
+
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+function createJob() {
+  const operator  = document.getElementById('f_operator').value;
+  const jobNumber = document.getElementById('f_job').value.trim();
+  const poNumber  = document.getElementById('f_po').value.trim();
+  const opType    = document.getElementById('f_optype').value;
+  const machine   = document.getElementById('f_machine').value;
+  if (!operator||!jobNumber||!opType||!machine) { alert('Please fill in Operator, Job Number, Department and Operation.'); return; }
+
+  const mrStartInput = document.getElementById('f_mr_start_time').value;
+  const now = mrStartInput || localNow();
+  const job = {
+    id: Date.now().toString(),
+    date: now.slice(0,10),
+    status: 'makeready',
+    operator, jobNumber, poNumber, opType, machine,
+    qty:         parseInt(document.getElementById('f_qty').value)||0,
+    pressSheets: parseInt(document.getElementById('f_press_sheets').value)||0,
+    pages:       parseInt(document.getElementById('f_pages').value)||0,
+    forms:       parseInt(document.getElementById('f_forms').value)||0,
+    sigs:        parseInt(document.getElementById('f_sigs').value)||0,
+    paperSize: document.getElementById('f_papersize').value.trim(),
+    paperType: document.getElementById('f_papertype').value,
+    colors:    document.getElementById('f_colors').value,
+    foldType:  document.getElementById('f_fold').value,
+    mrStart: now, mrStop: '', mrHrs: 0,
+    prodStart: '', prodStop: '', prodHrs: 0,
+    prodLogs: [], totalUnits: 0, uph: 0,
+    downtime: [], totalDT: 0
+  };
+
+  saveJob(job);
+  toast('Job created — Make Ready started ✓');
+  resetNewForm();
+  showView('active', document.querySelectorAll('.ntab')[0]);
+}
+
+function resetNewForm() {
+  ['f_operator','f_job','f_po','f_optype','f_machine',
+   'f_customer','f_due_date','f_product_type','f_finished_size','f_qty',
+   'f_mr_product_type','f_paper_type_sel','f_paper_type_other',
+   'f_parent_size','f_parent_sheets','f_press_size','f_press_sheets',
+   'f_pages','f_sched_sigs','f_sched_forms','f_up_on_press',
+   'f_waste_pct','f_calc_press_sheets','f_sched_notes',
+   'f_colors','f_fold','f_mr_start_time',
+   'f_fulfillment_notes','f_shipping_notes'
+  ].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value='';
+  });
+  document.getElementById('field_colors').classList.add('hidden');
+  document.getElementById('field_fold').classList.add('hidden');
+}
+
+// ── ACTIVE JOBS ───────────────────────────────────────────────────────────────
+function renderActiveJobs() {
+  const all      = getData();
+  const today    = localToday();
+  const active   = all.filter(j => j.status !== 'complete');
+  const complete = all.filter(j => j.status === 'complete' && j.date === today);
+
+  // Group active jobs by department
+  const depts = [
+    { key:'sched',   label:'Scheduling',       opType:'Scheduling',       machines: MACHINES['Scheduling'] },
+    { key:'prepress',label:'Prepress',          opType:'Prepress',         machines: MACHINES['Prepress'] },
+    { key:'press',   label:'Press',             opType:'Press',            machines: MACHINES['Press'] },
+    { key:'fold',    label:'Folding',           opType:'Folding',          machines: MACHINES['Folding'] },
+    { key:'bind',    label:'Bindery',           opType:'Bindery',          machines: MACHINES['Bindery'] },
+    { key:'finish',  label:'Finishing',         opType:'Finishing',        machines: MACHINES['Finishing'] },
+    { key:'mail',    label:'Mailing',           opType:'Mailing',          machines: MACHINES['Mailing'] },
+    { key:'fulfill', label:'Fulfillment',       opType:'Fulfillment',      machines: MACHINES['Fulfillment'] },
+    { key:'ship',    label:'Shipping/Inventory',opType:'Shipping/Inventory',machines: MACHINES['Shipping/Inventory'] }
+  ];
+
+  // Hide Scheduling master card when a linked operation is active in another dept
+  const activeLinkedJobIds = new Set(
+    active.filter(r => r.masterJobId).map(r => r.masterJobId)
+  );
+
+  depts.forEach(dept => {
+    let deptJobs = active.filter(j => j.opType === dept.opType);
+
+    // For Scheduling: hide master card if job is currently active in another dept
+    if (dept.key === 'sched') {
+      deptJobs = deptJobs.filter(j => !activeLinkedJobIds.has(j.id));
+    }
+
+    const countEl  = document.getElementById('dept_' + dept.key + '_count');
+    const listEl   = document.getElementById('dept_' + dept.key + '_list');
+    if (!countEl || !listEl) return;
+
+    countEl.textContent = deptJobs.length
+      ? deptJobs.length + ' active job' + (deptJobs.length !== 1 ? 's' : '')
+      : 'No active jobs';
+
+    listEl.innerHTML = deptJobs.length
+      ? deptJobs.map(j => renderJobCard(j)).join('')
+      : `<div style="width:100%;padding:16px 0 8px;font-size:.78rem;color:var(--muted);">No active jobs in this department.</div>`;
+  });
+
+  // Completed Today section
+  const cSec  = document.getElementById('complete_section');
+  const cList = document.getElementById('complete_list');
+  if (complete.length) {
+    cSec.classList.remove('hidden');
+    cList.innerHTML = complete.map(j => renderJobCard(j)).join('');
+  } else {
+    cSec.classList.add('hidden');
+  }
+}
+
+function renderJobCard(j) {
+  const stageLabel = { scheduled:'📅 Scheduled', setup:'Setup', makeready:'Make Ready', production:'In Production', complete:'Complete' };
+  const now = new Date();
+
+  // Detect active (open) downtime
+  const activeDT  = j.downtime && j.downtime.find(dt => dt.start && !dt.stop);
+  const dtElapsed = activeDT ? Math.max(0,(now - new Date(activeDT.start+':00'))/3600000).toFixed(2) : null;
+
+  // Timer flags
+  const { mrOvertime, logDue } = getTimerFlags(j, activeDT, now);
+
+  const dtBanner = activeDT ? `
+    <div class="dt-banner">
+      <div class="dt-banner-top">
+        <div class="dt-banner-label"><span class="dt-flash"></span>Downtime Active</div>
+        <span class="dt-banner-elapsed">${dtElapsed} hrs</span>
+      </div>
+      <div class="dt-banner-reason">${activeDT.reason||'Reason not specified'}</div>
+    </div>` : '';
+
+  let metaRows = '', actions = '';
+
+  // ── SCHEDULED (Scheduling dept — master job card) ────────────
+  if (j.status === 'scheduled') {
+    const schedDate   = parseLocalTime(j.scheduledAt);
+    const elapsedDays = schedDate ? Math.floor((now - schedDate) / 86400000) : 0;
+
+    // Aggregate all linked records for this job number
+    const allRecords  = getData().filter(r => r.jobNumber === j.jobNumber && r.id !== j.id);
+    const totalMRHrs  = allRecords.reduce((s,r) => s + (r.mrHrs||0), 0);
+    const totalProdHrs= allRecords.reduce((s,r) => s + (r.netProdHrs||r.prodHrs||0), 0);
+    const totalUnitsA = allRecords.reduce((s,r) => s + (r.totalUnits||0), 0);
+    const totalDTHrs  = allRecords.reduce((s,r) => s + (r.totalDT||0), 0);
+    const activeRecs  = allRecords.filter(r => r.status !== 'complete');
+
+    // Build operations history table
+    const deptOrder = ['Prepress','Press','Folding','Bindery','Finishing','Mailing','Fulfillment','Shipping/Inventory'];
+    const completedDepts = allRecords.filter(r => r.status === 'complete').map(r => r.opType);
+    const activeDepts    = allRecords.filter(r => r.status !== 'complete').map(r => r.opType);
+
+    let historyRows = `
+      <div style="margin:8px 0 4px;font-size:.62rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);">Production Status</div>
+      <div style="font-size:.75rem;">
+        <div style="display:flex;align-items:center;gap:6px;padding:3px 0;border-bottom:1px solid #f0f0f0;">
+          <span style="color:var(--green);">✓</span>
+          <span style="flex:1;font-weight:600;">Scheduling</span>
+          <span style="color:var(--muted);">${j.operator}</span>
+          <span style="color:var(--muted);font-size:.68rem;">${j.date}</span>
+        </div>`;
+
+    deptOrder.forEach(dept => {
+      const rec = allRecords.filter(r => r.opType === dept);
+      if (!rec.length) {
+        historyRows += `
+        <div style="display:flex;align-items:center;gap:6px;padding:3px 0;border-bottom:1px solid #f0f0f0;color:#ccc;">
+          <span>○</span><span style="flex:1;">${dept}</span><span style="font-size:.68rem;">Pending</span>
+        </div>`;
+      } else {
+        rec.forEach(r => {
+          const isActive = r.status !== 'complete';
+          const icon = isActive ? '🔵' : '✓';
+          const color = isActive ? 'var(--accent)' : 'var(--green)';
+          historyRows += `
+          <div style="display:flex;align-items:center;gap:6px;padding:3px 0;border-bottom:1px solid #f0f0f0;">
+            <span style="color:${color};">${icon}</span>
+            <span style="flex:1;font-weight:600;color:${color};">${dept}</span>
+            <span style="color:var(--muted);">${r.operator||'—'}</span>
+            <span style="color:var(--muted);font-size:.68rem;">${isActive ? 'Active' : r.totalUnits ? r.totalUnits.toLocaleString()+' units' : r.netProdHrs ? r.netProdHrs.toFixed(1)+'hr' : 'Done'}</span>
+          </div>`;
+        });
+      }
+    });
+    historyRows += '</div>';
+
+    metaRows = `
+      <div class="jc-meta-item"><div class="jcm-lbl">Customer</div><div class="jcm-val">${j.customer||'—'}</div></div>
+      <div class="jc-meta-item"><div class="jcm-lbl">Due Date</div><div class="jcm-val" style="${j.dueDate && j.dueDate < localToday() ? 'color:var(--red);font-weight:700;':''}">${j.dueDate||'—'}</div></div>
+      <div class="jc-meta-item"><div class="jcm-lbl">Process</div><div class="jcm-val">${j.printProcess||'—'}</div></div>
+      <div class="jc-meta-item"><div class="jcm-lbl">Qty</div><div class="jcm-val mono">${(j.qty||0).toLocaleString()}</div></div>
+      <div class="jc-meta-item"><div class="jcm-lbl">Press Sheets</div><div class="jcm-val mono">${(j.pressSheets||0).toLocaleString()}</div></div>
+      <div class="jc-meta-item"><div class="jcm-lbl">Days Active</div><div class="jcm-val mono" style="${elapsedDays>5?'color:var(--red);font-weight:900;':''}">${elapsedDays} day${elapsedDays!==1?'s':''}</div></div>
+      ${totalProdHrs > 0 ? `
+      <div class="jc-meta-item"><div class="jcm-lbl">Total MR Hrs</div><div class="jcm-val mono">${totalMRHrs.toFixed(2)}</div></div>
+      <div class="jc-meta-item"><div class="jcm-lbl">Total Prod Hrs</div><div class="jcm-val mono">${totalProdHrs.toFixed(2)}</div></div>
+      <div class="jc-meta-item"><div class="jcm-lbl">Total Units</div><div class="jcm-val mono">${totalUnitsA.toLocaleString()}</div></div>
+      ${totalDTHrs > 0 ? `<div class="jc-meta-item"><div class="jcm-lbl">Total Downtime</div><div class="jcm-val mono" style="color:var(--red);">${totalDTHrs.toFixed(2)} hrs</div></div>` : ''}
+      ` : ''}`;
+
+    // Append history below meta rows
+    metaRows += `<div style="margin-top:8px;">${historyRows}</div>`;
+
+    const hasActive = activeRecs.length > 0;
+    actions = `
+      <button class="btn btn-secondary btn-sm" onclick="openMR('${j.id}')">📋 Material Req</button>
+      <button class="btn btn-primary btn-sm" onclick="beginNextOperation('${j.id}','Scheduling')"
+        style="flex:1;">➕ Begin Next Operation</button>`;
+  } else
+
+  if (j.status === 'makeready') {
+    const mrStartDate = parseLocalTime(j.mrStart);
+    const elapsedMins = mrStartDate ? Math.floor((now - mrStartDate) / 60000) : 0;
+    const elapsedDisp = elapsedMins >= 60
+      ? (elapsedMins/60).toFixed(1) + ' hrs'
+      : elapsedMins + ' min';
+    const elapsedColor = elapsedMins >= 30 ? 'color:var(--yellow);font-weight:900;' : '';
+    const isSimple = SIMPLE_DEPTS.includes(j.opType);
+
+    metaRows = `
+      <div class="jc-meta-item"><div class="jcm-lbl">Operation</div><div class="jcm-val">${j.machine}</div></div>
+      <div class="jc-meta-item"><div class="jcm-lbl">Operator</div><div class="jcm-val">${j.operator}</div></div>
+      <div class="jc-meta-item"><div class="jcm-lbl">Started</div><div class="jcm-val">${j.mrStart ? j.mrStart.replace('T',' ') : '—'}</div></div>
+      <div class="jc-meta-item"><div class="jcm-lbl">Elapsed</div><div class="jcm-val mono" style="${elapsedColor}">${elapsedDisp}</div></div>`;
+
+    if (isSimple) {
+      // Simple depts: In Progress → Complete → Begin Next Operation
+      if (mrOvertime) badgeLbl = '⚠ Overtime';
+      else badgeLbl = 'In Progress';
+      actions = activeDT
+        ? `<button class="btn btn-danger btn-sm" onclick="openModal('stopDowntime','${j.id}')">⏹ Stop Downtime</button>`
+        : `<button class="btn btn-success btn-sm" onclick="completeSimpleOp('${j.id}')">✓ Complete</button>
+           <button class="btn btn-danger btn-sm" onclick="openModal('startDowntime','${j.id}')">⚠ Downtime</button>`;
+    } else {
+      // Standard depts: Make Ready → Stop MR → Start Production
+      actions = activeDT
+        ? `<button class="btn btn-danger btn-sm" onclick="openModal('stopDowntime','${j.id}')">⏹ Stop Downtime</button>`
+        : `<button class="btn btn-primary btn-sm" onclick="openModal('stopMR','${j.id}')">⏹ Stop Make Ready</button>
+           <button class="btn btn-danger btn-sm" onclick="openModal('startDowntime','${j.id}')">⚠ Report Downtime</button>`;
+    }
+
+  } else if (j.status === 'production') {
+    const logs        = j.prodLogs || [];
+    const refStr      = logs.length > 0 ? logs[logs.length - 1].time : j.prodStart;
+    const refDate     = parseLocalTime(refStr);
+    const sinceLog    = refDate ? Math.floor((now - refDate) / 60000) : 0;
+    const sinceDisp   = sinceLog >= 60 ? (sinceLog/60).toFixed(1)+' hrs' : sinceLog+' min';
+    const sinceColor  = sinceLog >= 30 ? 'color:var(--yellow);font-weight:900;' : '';
+    const startDate   = parseLocalTime(j.prodStart);
+    const elapsedHrs  = startDate ? Math.max(0,(now - startDate) / 3600000) : 0;
+    const netRun      = Math.max(0, elapsedHrs - (j.totalDT || 0)).toFixed(2);
+    const liveUph     = (elapsedHrs > 0 && j.totalUnits > 0)
+      ? Math.round(j.totalUnits / Math.max(0.01, elapsedHrs - (j.totalDT||0)))
+      : '—';
+    metaRows = `
+      <div class="jc-meta-item"><div class="jcm-lbl">Machine</div><div class="jcm-val">${j.machine}</div></div>
+      <div class="jc-meta-item"><div class="jcm-lbl">Operator</div><div class="jcm-val">${j.operator}</div></div>
+      <div class="jc-meta-item"><div class="jcm-lbl">Units Logged</div><div class="jcm-val mono">${j.totalUnits.toLocaleString()}</div></div>
+      <div class="jc-meta-item"><div class="jcm-lbl">Net Run Time</div><div class="jcm-val mono">${netRun} hrs</div></div>
+      <div class="jc-meta-item"><div class="jcm-lbl">Live U/hr</div><div class="jcm-val mono" style="color:var(--green)">${liveUph}</div></div>
+      <div class="jc-meta-item"><div class="jcm-lbl">Since Last Log</div><div class="jcm-val mono" style="${sinceColor}">${sinceDisp}</div></div>`;
+
+    // Add progress bar if job has a quantity target
+    const progressBar = (j.qty > 0) ? buildProgressBar(j.totalUnits, j.qty) : '';
+    actions = activeDT
+      ? `<button class="btn btn-danger btn-sm" onclick="openModal('stopDowntime','${j.id}')">⏹ Stop Downtime</button>`
+      : logDue
+      ? `<button class="btn-log-alert" onclick="openModal('logUnits','${j.id}')"><span class="blink-dot"></span>⚠ Log Units Now</button>
+         <button class="btn btn-primary btn-sm" onclick="openModal('stopProd','${j.id}')">⏹ Stop Production</button>
+         <button class="btn btn-danger btn-sm" onclick="openModal('startDowntime','${j.id}')">⚠ Report Downtime</button>`
+      : `<button class="btn btn-success btn-sm" onclick="openModal('logUnits','${j.id}')">+ Log Units</button>
+         <button class="btn btn-primary btn-sm" onclick="openModal('stopProd','${j.id}')">⏹ Stop Production</button>
+         <button class="btn btn-danger btn-sm" onclick="openModal('startDowntime','${j.id}')">⚠ Report Downtime</button>`;
+
+  } else if (j.status === 'complete') {
+    metaRows = `
+      <div class="jc-meta-item"><div class="jcm-lbl">Machine</div><div class="jcm-val">${j.machine}</div></div>
+      <div class="jc-meta-item"><div class="jcm-lbl">Operator</div><div class="jcm-val">${j.operator}</div></div>
+      <div class="jc-meta-item"><div class="jcm-lbl">Total Units</div><div class="jcm-val mono">${j.totalUnits.toLocaleString()}</div></div>
+      <div class="jc-meta-item"><div class="jcm-lbl">Avg U/hr</div><div class="jcm-val mono">${j.uph}</div></div>`;
+    actions = `<button class="btn btn-secondary btn-sm" onclick="openModal('summary','${j.id}')">📋 View Summary</button>`;
+  }
+
+  const barClass    = activeDT ? 'down-active' : j.status;
+  const cardClass   = mrOvertime ? 'mr-overtime' : '';
+  const badgeCls    = activeDT ? 'down' : j.status;
+  const badgeLbl    = activeDT ? '⚠ Downtime' : mrOvertime ? '⚠ MR Overtime' : stageLabel[j.status];
+  const badgeExtra  = mrOvertime ? 'mr-overtime-badge' : '';
+  const progressBar = (j.status === 'production' && j.qty > 0) ? buildProgressBar(j.totalUnits, j.qty) : '';
+
+  // Status dot color per dept
+  const deptDotColor = {
+    'Scheduling':'#2ecc71','Prepress':'#9b59b6','Press':'#e74c3c',
+    'Folding':'#f0a500','Bindery':'#00c2a8','Finishing':'#1abc9c',
+    'Mailing':'#3498db','Fulfillment':'#e67e22','Shipping/Inventory':'#95a5a6'
+  }[j.opType] || '#888';
+
+  const statusDot = activeDT ? '#e74c3c' :
+    j.status === 'production' ? '#2ecc71' :
+    j.status === 'makeready'  ? '#f0a500' :
+    j.status === 'scheduled'  ? '#2ecc71' : '#95a5a6';
+
+  return `<div class="job-card ${cardClass}" id="card_${j.id}">
+    <div class="jc-bar ${barClass}"></div>
+    <!-- Collapsed header — always visible, click to expand -->
+    <div class="jc-header" onclick="toggleCard('${j.id}')">
+      <div style="width:8px;height:8px;border-radius:50%;background:${statusDot};flex-shrink:0;box-shadow:0 0 5px ${statusDot};"></div>
+      <div style="font-weight:800;font-size:.88rem;color:var(--text);letter-spacing:.04em;">${j.jobNumber}</div>
+      ${j.customer ? `<div style="font-size:.72rem;color:var(--muted);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${j.customer}</div>` : `<div style="flex:1;"></div>`}
+      <span class="jc-pill" style="color:${deptDotColor};border-color:${deptDotColor};">${j.opType}</span>
+      <span class="stage-badge ${badgeCls} ${badgeExtra}" style="font-size:.6rem;padding:2px 7px;">${badgeLbl}</span>
+      <span class="jc-toggle">▼</span>
+    </div>
+    <!-- Expanded body — hidden by default -->
+    <div class="jc-body">
+      ${dtBanner}
+      <div class="jc-meta" style="margin-top:10px;">${metaRows}</div>
+      ${progressBar}
+      <hr class="jc-divider">
+      <div class="jc-actions">${actions}</div>
+    </div>
+  </div>`;
+}
+
+function toggleCard(id) {
+  const card = document.getElementById('card_' + id);
+  if (card) card.classList.toggle('expanded');
+}
+
+
+// ── MODALS ────────────────────────────────────────────────────────────────────
+function openModal(type, jobId) {
+  const job = getJob(jobId);
+  if (!job) return;
+  const now = localNow();
+  let html = '';
+
+  if (type === 'stopMR') {
+    html = `<div class="modal-header"><span class="modal-title">Stop Make Ready — ${job.jobNumber}</span><button class="modal-close" onclick="closeModal()">✕</button></div>
+    <div class="modal-body">
+      <p style="font-size:.82rem;color:var(--muted);margin-bottom:14px;">MR Started: <strong>${job.mrStart.replace('T',' ')}</strong></p>
+      <label>Make Ready Stop Time</label>
+      <div class="time-row">
+        <input type="datetime-local" id="m_mr_stop" value="${now}" oninput="calcModalMR()">
+        <button class="btn-now" onclick="setNow('m_mr_stop', calcModalMR)">⚡ Now</button>
+      </div>
+      <div class="auto-row" style="margin-top:10px;">
+        <div class="auto-field"><div class="af-lbl">MR Duration</div><div class="af-val" id="m_mr_dur">—</div></div>
+        <div class="auto-field"><div class="af-lbl">Status</div><div class="af-val" id="m_mr_status">—</div></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="doStopMR('${job.id}')">✓ Confirm — Begin Production</button>
+    </div>`;
+    setTimeout(calcModalMR, 50);
+
+  } else if (type === 'logUnits') {
+    const logs = job.prodLogs || [];
+    const logsHtml = logs.length ? logs.slice(-3).map(l =>
+      `<div class="prod-log-row">
+        <span>${l.time.replace('T',' ')}</span>
+        <span style="font-family:'Share Tech Mono',monospace;color:var(--accent);">+${l.units.toLocaleString()} units</span>
+       </div>`
+    ).join('') : '<div style="font-size:.78rem;color:var(--muted);padding:8px 0;">No logs yet — this will be the first entry.</div>';
+
+    const progHtml = job.qty > 0 ? buildProgressBar(job.totalUnits, job.qty) : '';
+
+    html = `<div class="modal-header"><span class="modal-title">Log Units — ${job.jobNumber}</span><button class="modal-close" onclick="closeModal()">✕</button></div>
+    <div class="modal-body">
+      <p style="font-size:.8rem;color:var(--muted);margin-bottom:12px;">Enter units produced <strong>this period only</strong> — they will be added to the running total.</p>
+      <label>Units Produced This Period</label>
+      <input type="number" id="m_log_units" placeholder="e.g. 5,000" min="0" oninput="calcModalUPH('${job.id}')">
+      <label style="margin-top:14px;">Time of Log</label>
+      <div class="time-row">
+        <input type="datetime-local" id="m_log_time" value="${now}">
+        <button class="btn-now" onclick="setNow('m_log_time')">⚡ Now</button>
+      </div>
+      <div class="auto-field" style="margin-top:10px;">
+        <div class="af-lbl">Cumulative Total after this entry</div>
+        <div class="af-val" id="m_running_total">${job.totalUnits.toLocaleString()} units so far</div>
+      </div>
+      ${progHtml}
+      <div style="margin-top:14px;"><div style="font-size:.65rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:6px;">Recent Logs</div>${logsHtml}</div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-success" onclick="doLogUnits('${job.id}')">+ Add to Total</button>
+    </div>`;
+
+  } else if (type === 'stopProd') {
+    html = `<div class="modal-header"><span class="modal-title">Stop Production — ${job.jobNumber}</span><button class="modal-close" onclick="closeModal()">✕</button></div>
+    <div class="modal-body">
+      <p style="font-size:.82rem;color:var(--muted);margin-bottom:14px;">Production Started: <strong>${job.prodStart.replace('T',' ')}</strong><br>Units logged: <strong>${job.totalUnits.toLocaleString()}</strong></p>
+      <label>Production Stop Time</label>
+      <div class="time-row">
+        <input type="datetime-local" id="m_prod_stop" value="${now}" oninput="calcModalProd('${job.id}')">
+        <button class="btn-now" onclick="setNow('m_prod_stop', ()=>calcModalProd('${job.id}'))">⚡ Now</button>
+      </div>
+      <div class="auto-row" style="margin-top:10px;">
+        <div class="auto-field"><div class="af-lbl">Run Duration</div><div class="af-val" id="m_prod_dur">—</div></div>
+        <div class="auto-field"><div class="af-lbl">Avg Units/hr</div><div class="af-val" id="m_prod_uph">—</div></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="doStopProd('${jobId}')">✓ Complete Job</button>
+    </div>`;
+    setTimeout(() => calcModalProd(job.id), 50);
+
+  } else if (type === 'downtime') {
+    html = `<div class="modal-header"><span class="modal-title">Log Downtime — ${job.jobNumber}</span><button class="modal-close" onclick="closeModal()">✕</button></div>
+    <div class="modal-body">
+      <div class="row-2">
+        <div>
+          <label>Start</label>
+          <div class="time-row">
+            <input type="datetime-local" id="m_dt_start" value="${now}">
+            <button class="btn-now" onclick="setNow('m_dt_start')">⚡</button>
+          </div>
+        </div>
+        <div>
+          <label>Stop</label>
+          <div class="time-row">
+            <input type="datetime-local" id="m_dt_stop">
+            <button class="btn-now" onclick="setNow('m_dt_stop')">⚡</button>
+          </div>
+        </div>
+      </div>
+      <label>Reason</label>
+      <select id="m_dt_reason">
+        <option value="">— Select —</option>
+        <option>Mechanical breakdown</option>
+        <option>Waiting for materials</option>
+        <option>Plate/setup issues</option>
+        <option>Operator break</option>
+        <option>Power issue</option>
+      </select>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-danger" onclick="doDowntime('${job.id}')">Save Downtime</button>
+    </div>`;
+
+  } else if (type === 'startDowntime') {
+    html = `<div class="modal-header" style="background:var(--red);"><span class="modal-title">⚠ Report Downtime — ${job.jobNumber}</span><button class="modal-close" onclick="closeModal()">✕</button></div>
+    <div class="modal-body">
+      <p style="font-size:.82rem;color:var(--muted);margin-bottom:14px;">Machine: <strong>${job.machine}</strong> &nbsp;|&nbsp; Stage: <strong>${job.status==='makeready'?'Make Ready':'Production'}</strong></p>
+      <label>Downtime Start</label>
+      <div class="time-row">
+        <input type="datetime-local" id="m_dt_start2" value="${now}">
+        <button class="btn-now" onclick="setNow('m_dt_start2')">⚡ Now</button>
+      </div>
+      <label>Reason</label>
+      <select id="m_dt_reason2">
+        <option value="">— Select Reason —</option>
+        <option>Mechanical breakdown</option>
+        <option>Waiting for materials</option>
+        <option>Plate/setup issues</option>
+        <option>Operator break</option>
+        <option>Power issue</option>
+        <option>Other</option>
+      </select>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-danger" onclick="doStartDowntime('${job.id}')">⚠ Start Downtime</button>
+    </div>`;
+
+  } else if (type === 'stopDowntime') {
+    const activeDT = job.downtime.find(dt => dt.start && !dt.stop);
+    const elapsed  = activeDT ? Math.max(0,(new Date()-new Date(activeDT.start+':00'))/3600000).toFixed(2) : '—';
+    html = `<div class="modal-header" style="background:var(--red);"><span class="modal-title">⏹ Stop Downtime — ${job.jobNumber}</span><button class="modal-close" onclick="closeModal()">✕</button></div>
+    <div class="modal-body">
+      <p style="font-size:.82rem;color:var(--muted);margin-bottom:6px;">Reason: <strong>${activeDT?activeDT.reason:'—'}</strong></p>
+      <p style="font-size:.82rem;color:var(--muted);margin-bottom:14px;">Started: <strong>${activeDT?activeDT.start.replace('T',' '):'—'}</strong> &nbsp;|&nbsp; Elapsed: <strong style="color:var(--red)">${elapsed} hrs</strong></p>
+      <label>Downtime Stop Time</label>
+      <div class="time-row">
+        <input type="datetime-local" id="m_dt_stop2" value="${now}">
+        <button class="btn-now" onclick="setNow('m_dt_stop2')">⚡ Now</button>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-success" onclick="doStopDowntime('${job.id}')">✓ Resume Operations</button>
+    </div>`;
+
+  } else if (type === 'summary') {
+    const dt = job.downtime.map(d => `<tr><td>Downtime</td><td>${d.reason||'—'} (${d.hrs}hrs)</td></tr>`).join('');
+    html = `<div class="modal-header"><span class="modal-title">Job Summary — ${job.jobNumber}</span><button class="modal-close" onclick="closeModal()">✕</button></div>
+    <div class="modal-body">
+      <table class="sum-table">
+        <tr><td>Job Number</td><td>${job.jobNumber}</td></tr>
+        <tr><td>PO Number</td><td>${job.poNumber||'—'}</td></tr>
+        <tr><td>Machine</td><td>${job.machine}</td></tr>
+        <tr><td>Operator</td><td>${job.operator}</td></tr>
+        <tr><td>Operation</td><td>${job.opType}</td></tr>
+        <tr><td>Quantity</td><td>${job.qty.toLocaleString()}</td></tr>
+        <tr><td>Paper Type</td><td>${job.paperType||'—'}</td></tr>
+        <tr><td>MR Duration</td><td>${job.mrHrs} hrs</td></tr>
+        <tr><td>Total Run Time</td><td>${job.prodHrs} hrs</td></tr>
+        <tr><td>Net Productive Time</td><td>${job.netProdHrs || job.prodHrs} hrs</td></tr>
+        <tr><td>Total Units</td><td>${job.totalUnits.toLocaleString()}</td></tr>
+        <tr><td>Avg Units/hr</td><td>${job.uph}</td></tr>
+        <tr><td>Total Downtime</td><td>${job.totalDT} hrs</td></tr>
+        ${dt}
+      </table>
+    </div>
+    <div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Close</button></div>`;
+  }
+
+  document.getElementById('modal_content').innerHTML = html;
+  document.getElementById('modal_overlay').classList.remove('hidden');
+}
+
+function closeModal() { document.getElementById('modal_overlay').classList.add('hidden'); }
+function closeModalOutside(e) { if (e.target.id === 'modal_overlay') closeModal(); }
+
+// ── MODAL CALCULATIONS ────────────────────────────────────────────────────────
+function calcModalMR() {
+  const s = document.getElementById('m_mr_stop')?.value;
+  if (!s) return;
+  const job = getData().find(j => j.status === 'makeready');
+  if (!job) return;
+  const h = (new Date(s) - new Date(job.mrStart)) / 3600000;
+  if (h <= 0) { document.getElementById('m_mr_dur').textContent = 'Invalid'; return; }
+  document.getElementById('m_mr_dur').textContent = h.toFixed(2) + ' hrs';
+  document.getElementById('m_mr_status').textContent = h <= 0.5 ? '✓ Good' : h <= 1 ? '⚠ Moderate' : '✕ Long';
+}
+
+function calcModalUPH(jobId) {
+  const job = getJob(jobId);
+  const u   = parseInt(document.getElementById('m_log_units')?.value) || 0;
+  const el  = document.getElementById('m_running_total');
+  if (el) {
+    const newTotal = job.totalUnits + u;
+    el.textContent = newTotal.toLocaleString() + ' units total';
+  }
+}
+
+function calcModalProd(jobId) {
+  const job = getJob(jobId);
+  const s   = document.getElementById('m_prod_stop')?.value;
+  if (!s || !job.prodStart) return;
+  const h    = (new Date(s) - new Date(job.prodStart)) / 3600000;
+  if (h <= 0) return;
+  const netH = Math.max(0.01, h - (job.totalDT || 0));
+  document.getElementById('m_prod_dur').textContent  = h.toFixed(2) + ' hrs total';
+  document.getElementById('m_prod_uph').textContent  =
+    job.totalUnits > 0 ? Math.round(job.totalUnits / netH) + ' (net ' + netH.toFixed(2) + ' hrs)' : '—';
+}
+
+// ── STAGE ACTIONS ─────────────────────────────────────────────────────────────
+function doStopMR(jobId) {
+  const job  = getJob(jobId);
+  const stop = document.getElementById('m_mr_stop').value;
+  if (!stop) { alert('Please enter a stop time.'); return; }
+  const h = (new Date(stop) - new Date(job.mrStart)) / 3600000;
+  if (h <= 0) { alert('Stop time must be after start time.'); return; }
+  job.mrStop    = stop;
+  job.mrHrs     = +h.toFixed(2);
+  job.prodStart = stop;
+  job.status    = 'production';
+  saveJob(job);
+  closeModal();
+  toast('Make Ready complete — Production started ✓');
+  renderActiveJobs();
+}
+
+function doLogUnits(jobId) {
+  const job   = getJob(jobId);
+  const time  = document.getElementById('m_log_time').value;
+  const units = parseInt(document.getElementById('m_log_units').value) || 0;
+  if (!units) { alert('Please enter units produced.'); return; }
+  job.prodLogs.push({ time, units });
+  job.totalUnits += units;
+  saveJob(job);
+  closeModal();
+  toast(units + ' units logged ✓');
+  renderActiveJobs();
+}
+
+function doStopProd(jobId) {
+  const job  = getJob(jobId);
+  const stop = document.getElementById('m_prod_stop').value;
+  if (!stop) { alert('Please enter a stop time.'); return; }
+  const h    = (new Date(stop) - new Date(job.prodStart)) / 3600000;
+  if (h <= 0) { alert('Stop time must be after start.'); return; }
+  const netH = Math.max(0.01, h - (job.totalDT || 0));
+  job.prodStop   = stop;
+  job.prodHrs    = +h.toFixed(2);
+  job.netProdHrs = +netH.toFixed(2);
+  job.uph        = job.totalUnits > 0 ? Math.round(job.totalUnits / netH) : 0;
+  job.status    = 'complete';
+  saveJob(job);
+
+  // Send to Google Sheets
+  fetch(SHEET_URL, {
+    method:'POST', mode:'no-cors',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({
+      date:job.date, operator:job.operator, jobNumber:job.jobNumber, poNumber:job.poNumber,
+      opType:job.opType, machine:job.machine, qty:job.qty, pages:job.pages, sigs:job.sigs,
+      paperSize:job.paperSize, paperType:job.paperType, colors:job.colors, foldType:job.foldType,
+      mrStart:job.mrStart.replace('T',' '), mrStop:job.mrStop.replace('T',' '), mrHrs:job.mrHrs,
+      prodStart:job.prodStart.replace('T',' '), prodStop:job.prodStop.replace('T',' '),
+      prodHrs:job.prodHrs, totalUnits:job.totalUnits, uph:job.uph,
+      totalDowntimeHrs:job.totalDT,
+      downtimeReasons:job.downtime.map(d=>d.reason).filter(Boolean).join('; ')
+    })
+  }).catch(()=>{});
+
+  closeModal();
+  toast('Job complete ✓ — Data sent to Google Sheet');
+  renderActiveJobs();
+}
+
+function doStartDowntime(jobId) {
+  const job    = getJob(jobId);
+  const start  = document.getElementById('m_dt_start2').value;
+  const reason = document.getElementById('m_dt_reason2').value;
+  if (!start) { alert('Please enter a start time.'); return; }
+  if (!reason) { alert('Please select a reason.'); return; }
+  job.downtime.push({ start, stop: '', reason, hrs: 0 });
+  saveJob(job);
+  closeModal();
+  toast('Downtime started — machine flagged as Down');
+  renderActiveJobs();
+}
+
+function doStopDowntime(jobId) {
+  const job  = getJob(jobId);
+  const stop = document.getElementById('m_dt_stop2').value;
+  if (!stop) { alert('Please enter a stop time.'); return; }
+  const idx = job.downtime.findIndex(dt => dt.start && !dt.stop);
+  if (idx < 0) return;
+  const hrs = Math.max(0, (new Date(stop+':00') - new Date(job.downtime[idx].start+':00')) / 3600000);
+  job.downtime[idx].stop = stop;
+  job.downtime[idx].hrs  = +hrs.toFixed(2);
+  job.totalDT = +(job.downtime.reduce((s,d) => s+d.hrs, 0)).toFixed(2);
+  saveJob(job);
+  closeModal();
+  toast('Downtime ended — operations resumed ✓');
+  renderActiveJobs();
+}
+
+function doDowntime(jobId) {
+  const job    = getJob(jobId);
+  const start  = document.getElementById('m_dt_start').value;
+  const stop   = document.getElementById('m_dt_stop').value;
+  const reason = document.getElementById('m_dt_reason').value;
+  const hrs    = (start && stop) ? +((new Date(stop)-new Date(start))/3600000).toFixed(2) : 0;
+  job.downtime.push({ start, stop, reason, hrs });
+  job.totalDT = +(job.downtime.reduce((s,d) => s+d.hrs, 0)).toFixed(2);
+  saveJob(job);
+  closeModal();
+  toast('Downtime logged ✓');
+  renderActiveJobs();
+}
+
+// Returns today's date in local timezone (fixes UTC date mismatch bug)
+function localToday() {
+  const now = new Date();
+  return new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0,10);
+}
+
+// ── DASHBOARD ─────────────────────────────────────────────────────────────────
+function renderDashboard() {
+  const all     = getData();
+  const today   = localToday();
+  const todayAll   = all.filter(d => d.date === today);
+  const complete   = todayAll.filter(d => d.status === 'complete');
+  const activeJobs = all.filter(d => d.status === 'production' || d.status === 'makeready' || d.status === 'scheduled');
+  const totalUnits = todayAll.reduce((s,d) => s + (d.totalUnits||0), 0);
+  const avgUph     = complete.length ? Math.round(complete.reduce((s,d)=>s+(d.uph||0),0)/complete.length) : 0;
+  const totalDT    = todayAll.reduce((s,d) => s + (d.totalDT||0), 0);
+
+  // Active jobs, makeready count, downtime count
+  const makereadyCount = all.filter(d => d.status === 'makeready').length;
+  const downtimeCount  = all.filter(d =>
+    d.downtime && d.downtime.some(dt => dt.start && !dt.stop)
+  ).length;
+
+  let summaryHtml = `
+    <div class="sc"><div class="sc-val" style="color:var(--green)">${activeJobs.length}</div><div class="sc-lbl">Active Jobs</div></div>
+    <div class="sc"><div class="sc-val" style="color:var(--fold)">${makereadyCount}</div><div class="sc-lbl">In Make Ready</div></div>
+    <div class="sc"><div class="sc-val" style="${downtimeCount>0?'color:var(--red)':'color:var(--muted)'}">${downtimeCount}</div><div class="sc-lbl">Machines Down</div></div>`;
+  document.getElementById('dash_summary').innerHTML = summaryHtml;
+
+  // ── Departmental Report (managers/admins only) ───────────────
+  const role = currentUser ? currentUser.role : null;
+  const deptReportEl = document.getElementById('dept_report');
+  if (!deptReportEl) { renderDeptSections(all, today, todayAll); return; }
+
+  if (role === 'admin' || role === 'manager') {
+    const depts = [
+      { key:'Scheduling',        color:'#2ecc71' },
+      { key:'Prepress',          color:'#9b59b6' },
+      { key:'Press',             color:'#e74c3c' },
+      { key:'Folding',           color:'#f0a500' },
+      { key:'Bindery',           color:'#00c2a8' },
+      { key:'Finishing',         color:'#1abc9c' },
+      { key:'Mailing',           color:'#3498db' },
+      { key:'Fulfillment',       color:'#e67e22' },
+      { key:'Shipping/Inventory',color:'#95a5a6' }
+    ];
+
+    let reportHtml = `
+      <div style="background:var(--panel);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:24px;">
+        <div style="background:#1a1a2e;padding:12px 18px;display:flex;justify-content:space-between;align-items:center;">
+          <div style="color:#fff;font-weight:800;font-size:.85rem;letter-spacing:.08em;text-transform:uppercase;">📊 Departmental Summary — ${today}</div>
+          <div style="color:rgba(255,255,255,.5);font-size:.7rem;">${all.filter(d=>d.date===today).length} total entries today</div>
+        </div>
+        <div style="overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;font-size:.78rem;">
+          <thead>
+            <tr style="background:#f5f5f5;border-bottom:2px solid var(--border);">
+              <th style="padding:9px 14px;text-align:left;font-size:.68rem;letter-spacing:.08em;color:var(--muted);text-transform:uppercase;">Department</th>
+              <th style="padding:9px 10px;text-align:center;font-size:.68rem;letter-spacing:.08em;color:var(--muted);text-transform:uppercase;">Jobs Today</th>
+              <th style="padding:9px 10px;text-align:center;font-size:.68rem;letter-spacing:.08em;color:var(--muted);text-transform:uppercase;">Active</th>
+              <th style="padding:9px 10px;text-align:center;font-size:.68rem;letter-spacing:.08em;color:var(--muted);text-transform:uppercase;">Complete</th>
+              <th style="padding:9px 10px;text-align:center;font-size:.68rem;letter-spacing:.08em;color:var(--muted);text-transform:uppercase;">MR Hrs</th>
+              <th style="padding:9px 10px;text-align:center;font-size:.68rem;letter-spacing:.08em;color:var(--muted);text-transform:uppercase;">Prod Hrs</th>
+              <th style="padding:9px 10px;text-align:right;font-size:.68rem;letter-spacing:.08em;color:var(--muted);text-transform:uppercase;">Units</th>
+              <th style="padding:9px 10px;text-align:center;font-size:.68rem;letter-spacing:.08em;color:var(--muted);text-transform:uppercase;">Avg U/hr</th>
+              <th style="padding:9px 10px;text-align:center;font-size:.68rem;letter-spacing:.08em;color:var(--red);text-transform:uppercase;">Downtime</th>
+              <th style="padding:9px 14px;text-align:left;font-size:.68rem;letter-spacing:.08em;color:var(--muted);text-transform:uppercase;">Operators</th>
+            </tr>
+          </thead>
+          <tbody>`;
+
+    depts.forEach(dept => {
+      const dRows    = todayAll.filter(d => d.opType === dept.key);
+      const active   = all.filter(d => d.opType === dept.key && (d.status==='production'||d.status==='makeready'||d.status==='scheduled'));
+      const done     = dRows.filter(d => d.status === 'complete');
+      const mrHrs    = dRows.reduce((s,d)=>s+(d.mrHrs||0),0);
+      const prodHrs  = dRows.reduce((s,d)=>s+(d.netProdHrs||d.prodHrs||0),0);
+      const units    = dRows.reduce((s,d)=>s+(d.totalUnits||0),0);
+      const dtHrs    = dRows.reduce((s,d)=>s+(d.totalDT||0),0);
+      const uphVals  = done.filter(d=>(d.uph||0)>0);
+      const avgU     = uphVals.length ? Math.round(uphVals.reduce((s,d)=>s+(d.uph||0),0)/uphVals.length) : 0;
+      const ops      = [...new Set(dRows.map(d=>d.operator).filter(Boolean))];
+      const hasActive = active.length > 0;
+
+      reportHtml += `
+        <tr style="border-bottom:1px solid var(--border);${hasActive?'background:rgba(240,165,0,.04)':''}">
+          <td style="padding:9px 14px;">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div style="width:8px;height:8px;border-radius:50%;background:${dept.color};flex-shrink:0;${hasActive?'box-shadow:0 0 6px '+dept.color:''}"></div>
+              <span style="font-weight:700;color:var(--text);">${dept.key}</span>
+            </div>
+          </td>
+          <td style="padding:9px 10px;text-align:center;">${dRows.length||'—'}</td>
+          <td style="padding:9px 10px;text-align:center;">${active.length ? '<span style="font-weight:700;color:'+dept.color+'">'+active.length+'</span>' : '—'}</td>
+          <td style="padding:9px 10px;text-align:center;">${done.length||'—'}</td>
+          <td style="padding:9px 10px;text-align:center;font-family:monospace;">${mrHrs ? mrHrs.toFixed(2) : '—'}</td>
+          <td style="padding:9px 10px;text-align:center;font-family:monospace;">${prodHrs ? prodHrs.toFixed(2) : '—'}</td>
+          <td style="padding:9px 10px;text-align:right;font-weight:700;">${units ? units.toLocaleString() : '—'}</td>
+          <td style="padding:9px 10px;text-align:center;font-family:monospace;">${avgU||'—'}</td>
+          <td style="padding:9px 10px;text-align:center;font-family:monospace;${dtHrs>0?'color:var(--red);font-weight:700;':'color:var(--muted);'}">${dtHrs ? dtHrs.toFixed(2) : '—'}</td>
+          <td style="padding:9px 14px;font-size:.72rem;color:var(--muted);">${ops.join(', ')||'—'}</td>
+        </tr>`;
+
+      // Operator breakdown rows (expandable detail)
+      if (dRows.length) {
+        const byOp = {};
+        dRows.forEach(r => { if (!byOp[r.operator]) byOp[r.operator]=[]; byOp[r.operator].push(r); });
+        Object.entries(byOp).forEach(([op, rows]) => {
+          const opUnits = rows.reduce((s,d)=>s+(d.totalUnits||0),0);
+          const opProd  = rows.reduce((s,d)=>s+(d.netProdHrs||d.prodHrs||0),0);
+          const opDT    = rows.reduce((s,d)=>s+(d.totalDT||0),0);
+          const opOps   = [...new Set(rows.map(r=>r.machine).filter(Boolean))];
+          reportHtml += `
+            <tr style="background:#fafafa;border-bottom:1px solid #f0f0f0;">
+              <td style="padding:5px 14px 5px 34px;color:var(--muted);font-size:.72rem;" colspan="1">↳ ${op}</td>
+              <td style="padding:5px 10px;text-align:center;font-size:.72rem;color:var(--muted);">${rows.length}</td>
+              <td colspan="2" style="padding:5px 10px;font-size:.7rem;color:var(--muted);text-align:center;">${rows.filter(r=>r.status!=='complete').length} active</td>
+              <td style="padding:5px 10px;text-align:center;font-family:monospace;font-size:.72rem;color:var(--muted);">${rows.reduce((s,d)=>s+(d.mrHrs||0),0).toFixed(2)}</td>
+              <td style="padding:5px 10px;text-align:center;font-family:monospace;font-size:.72rem;color:var(--muted);">${opProd.toFixed(2)}</td>
+              <td style="padding:5px 10px;text-align:right;font-size:.72rem;">${opUnits.toLocaleString()}</td>
+              <td colspan="1" style="padding:5px 10px;font-size:.7rem;color:var(--muted);text-align:center;">${opDT>0?'<span style="color:var(--red);">'+opDT.toFixed(2)+' DT</span>':'—'}</td>
+              <td style="padding:5px 10px;font-size:.7rem;color:var(--muted);" colspan="2">${opOps.join(' · ')||'—'}</td>
+            </tr>`;
+        });
+      }
+    });
+
+    // Totals row
+    const totalMR   = todayAll.reduce((s,d)=>s+(d.mrHrs||0),0);
+    const totalProd = todayAll.reduce((s,d)=>s+(d.netProdHrs||d.prodHrs||0),0);
+    reportHtml += `
+          <tr style="background:#1a1a2e;color:#fff;font-weight:700;">
+            <td style="padding:10px 14px;font-size:.8rem;letter-spacing:.06em;">TOTALS</td>
+            <td style="padding:10px;text-align:center;">${todayAll.length}</td>
+            <td style="padding:10px;text-align:center;">${activeJobs.length}</td>
+            <td style="padding:10px;text-align:center;">${complete.length}</td>
+            <td style="padding:10px;text-align:center;font-family:monospace;">${totalMR.toFixed(2)}</td>
+            <td style="padding:10px;text-align:center;font-family:monospace;">${totalProd.toFixed(2)}</td>
+            <td style="padding:10px;text-align:right;">${totalUnits.toLocaleString()}</td>
+            <td style="padding:10px;text-align:center;">${avgUph||'—'}</td>
+            <td style="padding:10px;text-align:center;font-family:monospace;${totalDT>0?'color:#ff8080;':''}">${totalDT.toFixed(2)}</td>
+            <td style="padding:10px 14px;"></td>
+          </tr>
+        </tbody></table></div>
+      </div>`;
+
+    deptReportEl.innerHTML = reportHtml;
+  } else {
+    deptReportEl.innerHTML = '';
+  }
+
+  renderDeptSections(all, today, todayAll);
+}
+
+function renderDeptSections(all, today, todayAll) {
+  renderDeptCards('Scheduling', 'sched',   all, today);
+  renderDeptCards('Prepress',   'prepress',all, today);
+  renderDeptCards('Press',      'press',   all, today);
+  renderDeptCards('Folding',    'fold',    all, today);
+  renderDeptCards('Bindery',    'bind',    all, today);
+  renderDeptCards('Finishing',  'finish',  all, today);
+  renderDeptCards('Mailing',    'mail',    all, today);
+  document.getElementById('refresh_lbl').textContent = 'Last updated: ' + new Date().toLocaleTimeString();
+}
+
+function getMachineStatus(machine, all, today) {
+  // Check active (non-complete) jobs first — they are live right now
+  const activeJob = all.find(d => d.machine === machine && d.status !== 'complete');
+  if (activeJob) {
+    if (activeJob.downtime && activeJob.downtime.some(dt => dt.start && !dt.stop)) return 'down';
+    if (activeJob.status === 'makeready')  return 'mr';
+    if (activeJob.status === 'production') return 'run';
+  }
+  // Fall back to today's completed jobs
+  const rows = all.filter(d => d.machine === machine && d.date === today);
+  if (!rows.length) return 'idle';
+  return 'idle';
+}
+
+function getTrend(machine, all, today) {
+  const rows = all.filter(d => d.machine===machine && d.date===today && d.status==='complete' && d.uph > 0);
+  if (rows.length < 2) return 'flat';
+  const half   = Math.floor(rows.length / 2);
+  const early  = rows.slice(0, half).reduce((s,d)=>s+d.uph,0) / half;
+  const recent = rows.slice(half).reduce((s,d)=>s+d.uph,0) / (rows.length - half);
+  const pct    = ((recent - early) / early) * 100;
+  if (pct < -8) return 'down';
+  if (pct >  8) return 'up';
+  return 'flat';
+}
+
+function renderDeptCards(opType, cls, all, today) {
+  const machines   = MACHINES[opType] || [];
+  const isPrepress = opType === 'Prepress';
+  const now        = new Date();
+
+  // Count active
+  const activeCount = machines.filter(m =>
+    all.some(d => d.machine === m && d.status !== 'complete')
+  ).length;
+  const cntEl = document.getElementById('cnt_' + cls);
+  if (cntEl) cntEl.textContent = activeCount + ' of ' + machines.length + ' active';
+
+  const container = document.getElementById('cards_' + cls);
+  if (!container) return;
+
+  const S = {
+    run:  { cls:'s-run',  lbl:'Running',    dot:'#2ecc71' },
+    mr:   { cls:'s-mr',   lbl:'Make Ready', dot:'#f0a500' },
+    down: { cls:'s-down', lbl:'Down',       dot:'#e74c3c' },
+    idle: { cls:'s-idle', lbl:'Idle',       dot:'#aaaaaa' }
+  };
+
+  container.innerHTML = machines.map((m, idx) => {
+    const allRows  = all.filter(d => d.machine === m && (d.date === today || d.status !== 'complete'));
+    const activeJob= all.find(d => d.machine === m && d.status !== 'complete');
+    const s        = S[getMachineStatus(m, all, today)];
+    const cardId   = 'mcard_' + cls + '_' + idx;
+
+    if (isPrepress) {
+      // ── Prepress: simplified — job number, operator, elapsed time only ──
+      const activeJobs = allRows.filter(d => d.status !== 'complete');
+      const jobList = activeJobs.length
+        ? activeJobs.map(j => {
+            const start   = j.mrStart ? parseLocalTime(j.mrStart) : null;
+            const elapsed = start ? Math.floor((now - start) / 60000) : 0;
+            const dispEl  = elapsed >= 60
+              ? (elapsed/60).toFixed(1) + ' hrs'
+              : elapsed + ' min';
+            return `<div style="display:flex;justify-content:space-between;align-items:center;
+              padding:5px 0;border-bottom:1px solid #f0f0f0;font-size:.75rem;">
+              <span style="font-weight:700;">${j.jobNumber}</span>
+              <span style="color:var(--muted);">${j.operator||'—'}</span>
+              <span style="font-family:monospace;color:var(--accent);">${dispEl}</span>
+            </div>`;
+          }).join('')
+        : `<div style="font-size:.72rem;color:var(--muted);padding:8px 0;text-align:center;">No active jobs</div>`;
+
+      return `<div class="mcard ${cls}" id="${cardId}">
+        <div class="mcard-header" onclick="toggleMCard('${cardId}')">
+          <span style="width:8px;height:8px;border-radius:50%;background:${s.dot};flex-shrink:0;display:inline-block;"></span>
+          <span class="mcard-name" style="margin:0;font-size:.78rem;">${m}</span>
+          ${activeJobs.length ? `<span style="background:var(--green);color:#fff;font-size:.6rem;font-weight:700;padding:1px 6px;border-radius:10px;">${activeJobs.length}</span>` : ''}
+          <span class="mcard-toggle">▼</span>
+        </div>
+        <div class="mcard-body" style="padding:6px 12px 10px;">
+          ${jobList}
+        </div>
+      </div>`;
+    }
+
+    // ── Standard dept card ──
+    const tot   = allRows.reduce((s,d) => s + (d.totalUnits||0), 0);
+    const last  = activeJob || (allRows.length ? allRows[allRows.length-1] : null);
+    const validComp = allRows.filter(d => d.status==='complete' && d.uph>0);
+    const avg   = validComp.length
+      ? Math.round(validComp.reduce((s,d)=>s+d.uph,0)/validComp.length)
+      : null;
+
+    let liveUph = null;
+    if (activeJob && activeJob.status==='production' && activeJob.prodStart && activeJob.totalUnits>0) {
+      const logs = activeJob.prodLogs || [];
+      const endTime   = logs.length > 0 ? new Date(logs[logs.length-1].time) : new Date();
+      const elapsedHrs = (endTime - new Date(activeJob.prodStart)) / 3600000;
+      if (elapsedHrs > 0) liveUph = Math.round(activeJob.totalUnits / Math.max(0.01, elapsedHrs - (activeJob.totalDT||0)));
+    }
+
+    const displayUph = liveUph !== null ? liveUph : avg;
+    const uphColor   = liveUph !== null ? 'color:var(--green)' : '';
+    const dashProg   = (activeJob && activeJob.status==='production' && activeJob.qty>0)
+      ? buildProgressBar(activeJob.totalUnits, activeJob.qty) : '';
+
+    return `<div class="mcard ${cls}" id="${cardId}">
+      <div class="mcard-header" onclick="toggleMCard('${cardId}')">
+        <span style="width:8px;height:8px;border-radius:50%;background:${s.dot};flex-shrink:0;display:inline-block;${s.cls==='s-run'?'box-shadow:0 0 5px '+s.dot+';':''}"></span>
+        <span class="mcard-name" style="margin:0;font-size:.76rem;flex:1;">${m}</span>
+        <span class="mcard-status ${s.cls}" style="font-size:.6rem;padding:2px 7px;">${s.lbl}</span>
+        <span class="mcard-toggle">▼</span>
+      </div>
+      <div class="mcard-body">
+        ${displayUph !== null
+          ? `<div style="display:flex;align-items:baseline;gap:4px;margin:8px 0 2px;">
+               <div class="mcard-uph" style="${uphColor};font-size:1.3rem;">${displayUph}</div>
+               <div style="font-size:.65rem;color:var(--muted);">${liveUph!==null?'live u/hr':'avg u/hr'}</div>
+             </div>`
+          : `<div style="color:var(--muted);font-size:.78rem;padding:8px 0;">${activeJob?'Logging…':'No data today'}</div>`}
+        ${dashProg}
+        <hr class="mcard-divider">
+        <div class="mcard-row"><span class="mrl">Job #</span><span class="mrv">${last?last.jobNumber:'—'}</span></div>
+        <div class="mcard-row"><span class="mrl">Operator</span><span class="mrv">${last?last.operator:'—'}</span></div>
+        <div class="mcard-row"><span class="mrl">Jobs Today</span><span class="mrv">${allRows.length}</span></div>
+        <div class="mcard-row"><span class="mrl">Units Today</span><span class="mrv">${tot.toLocaleString()}</span></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggleMCard(id) {
+  const el = document.getElementById(id);
+  if (el) el.classList.toggle('mc-expanded');
+}
+
+
+// Mark job as invoiced (stops elapsed days clock for Scheduling)
+function markInvoiced(jobId) {
+  if (!confirm('Mark this job as Invoiced? This will record the invoice date and stop the elapsed days counter.')) return;
+  const all = getData();
+  const job = all.find(j => j.id === jobId);
+  if (!job) return;
+  job.invoicedAt = localNow();
+  // Keep status as 'complete' — job stays in Archive
+  if (job.status === 'scheduled') job.status = 'complete';
+  setData(all);
+  renderArchive();
+  toast('✓ Job ' + job.jobNumber + ' marked as Invoiced');
+}
+
+
+let previewTimers = false;
+function togglePreviewTimers(btn) {
+  previewTimers = !previewTimers;
+  btn.textContent = previewTimers ? '✕ Close Preview' : '⚡ Preview Timer Alerts';
+  btn.style.background = previewTimers ? 'rgba(230,126,34,.15)' : '';
+  btn.style.borderColor = previewTimers ? 'var(--yellow)' : '';
+  btn.style.color = previewTimers ? 'var(--yellow)' : '';
+  const strip = document.getElementById('timer_preview_strip');
+  strip.style.display = previewTimers ? 'flex' : 'none';
+  renderActiveJobs();
+}
+
+
+
+// Safely parse a datetime-local string "YYYY-MM-DDTHH:MM" as LOCAL time
+// Avoids browser inconsistencies with new Date(string) UTC vs local parsing
+function parseLocalTime(str) {
+  if (!str) return null;
+  const clean = str.trim();
+  const [datePart, timePart] = clean.split('T');
+  if (!datePart || !timePart) return null;
+  const [yr, mo, dy] = datePart.split('-').map(Number);
+  const [hr, mn]     = timePart.split(':').map(Number);
+  if (isNaN(yr) || isNaN(mo) || isNaN(dy) || isNaN(hr) || isNaN(mn)) return null;
+  return new Date(yr, mo - 1, dy, hr, mn, 0, 0); // local time constructor — always correct
+}
+
+function getTimerFlags(j, activeDT, now) {
+  // Preview mode forces all alerts on regardless of elapsed time
+  if (previewTimers) {
+    return {
+      mrOvertime: j.status === 'makeready',
+      logDue:     j.status === 'production' && !activeDT
+    };
+  }
+
+  const nowMs = now.getTime();
+
+  // Make Ready overtime — flag after 30 minutes
+  let mrOvertime = false;
+  if (j.status === 'makeready' && j.mrStart) {
+    const t = parseLocalTime(j.mrStart);
+    if (t) mrOvertime = (nowMs - t.getTime()) / 60000 >= 30;
+  }
+
+  // Production — flag if no log entry in last 30 minutes
+  let logDue = false;
+  if (j.status === 'production' && j.prodStart && !activeDT) {
+    const logs    = j.prodLogs || [];
+    const refStr  = logs.length > 0 ? logs[logs.length - 1].time : j.prodStart;
+    const t       = parseLocalTime(refStr);
+    if (t) logDue = (nowMs - t.getTime()) / 60000 >= 30;
+  }
+
+  return { mrOvertime, logDue };
+}
+
+
+function buildProgressBar(totalUnits, qty) {
+  if (!qty || qty <= 0) return '';
+  const pct     = Math.min(100, (totalUnits / qty) * 100);
+  const fillCls = pct >= 100 ? 'p100' : pct >= 75 ? 'p75' : pct >= 50 ? 'p50' : pct >= 25 ? 'p25' : 'p0';
+  const pctColor= pct >= 100 ? 'color:var(--accent2)' : pct >= 75 ? 'color:var(--green)' : pct >= 50 ? 'color:var(--accent)' : pct >= 25 ? 'color:var(--yellow)' : 'color:var(--gray)';
+  return `<div class="prog-wrap">
+    <div class="prog-header">
+      <span class="prog-label">Job Progress</span>
+      <span class="prog-pct" style="${pctColor}">${pct.toFixed(1)}%</span>
+    </div>
+    <div class="prog-track">
+      <div class="prog-fill ${fillCls}" style="width:${pct}%"></div>
+      <div class="prog-tick" style="left:25%"></div>
+      <div class="prog-tick" style="left:50%"></div>
+      <div class="prog-tick" style="left:75%"></div>
+    </div>
+    <div class="prog-footer">
+      <span class="prog-foot-lbl">0</span>
+      <span class="prog-foot-lbl">25%</span>
+      <span class="prog-foot-lbl">50%</span>
+      <span class="prog-foot-lbl">75%</span>
+      <span class="prog-foot-lbl">100%</span>
+    </div>
+    <div class="prog-units">${totalUnits.toLocaleString()} / ${qty.toLocaleString()} units</div>
+  </div>`;
+}
+
+
+let archSort = { col: 'date', dir: 'desc' };
+
+// ── 3-DAY DATA RETENTION ──────────────────────────────────────────────────────
+function purgeOldJobs() {
+  const all      = getData();
+  const cutoff   = new Date();
+  cutoff.setDate(cutoff.getDate() - 3);
+  const cutoffStr = new Date(cutoff.getTime() - cutoff.getTimezoneOffset() * 60000)
+    .toISOString().slice(0, 10);
+
+  const kept = all.filter(j => {
+    if (j.status !== 'complete') return true; // always keep active jobs
+    return j.date >= cutoffStr;               // keep completed jobs within 3 days
+  });
+
+  if (kept.length < all.length) {
+    setData(kept);
+  }
+}
+
+function clearArchiveFilters() {
+  document.getElementById('arch_search').value = '';
+  document.getElementById('arch_op').value = '';
+  document.getElementById('arch_from').value = '';
+  document.getElementById('arch_to').value = '';
+  renderArchive();
+}
+
+function renderArchive() {
+  purgeOldJobs(); // clean up old jobs first
+
+  const all      = getData();
+  const complete = all.filter(d => d.status === 'complete');
+
+  // 3-day window
+  const cutoff   = new Date();
+  cutoff.setDate(cutoff.getDate() - 3);
+  const cutoffStr = new Date(cutoff.getTime() - cutoff.getTimezoneOffset() * 60000)
+    .toISOString().slice(0, 10);
+
+  // Apply 3-day filter plus any user filters
+  const search   = (document.getElementById('arch_search').value || '').toLowerCase();
+  const opFilter = document.getElementById('arch_op').value;
+  const fromDate = document.getElementById('arch_from').value || cutoffStr;
+  const toDate   = document.getElementById('arch_to').value;
+
+  const filtered = complete.filter(d => {
+    if (opFilter && d.opType !== opFilter) return false;
+    if (fromDate && d.date < fromDate) return false;
+    if (toDate   && d.date > toDate)   return false;
+    if (search && ![d.jobNumber, d.poNumber, d.operator, d.machine, d.paperType, d.opType]
+      .join(' ').toLowerCase().includes(search)) return false;
+    return true;
+  });
+
+  // Sort
+  const sorted = [...filtered].sort((a, b) => {
+    let av = a[archSort.col] || '', bv = b[archSort.col] || '';
+    if (typeof av === 'number') return archSort.dir === 'asc' ? av-bv : bv-av;
+    return archSort.dir === 'asc' ? String(av).localeCompare(String(bv)) : String(bv).localeCompare(String(av));
+  });
+
+  // Summary strip
+  const totalJobs  = filtered.length;
+  const totalUnits = filtered.reduce((s,d) => s+d.totalUnits, 0);
+  const avgUph     = filtered.filter(d=>d.uph>0).length
+    ? Math.round(filtered.filter(d=>d.uph>0).reduce((s,d)=>s+d.uph,0) / filtered.filter(d=>d.uph>0).length) : 0;
+  const totalDT    = filtered.reduce((s,d)=>s+(d.totalDT||0),0).toFixed(1);
+  const totalHrs   = filtered.reduce((s,d)=>s+(d.prodHrs||0),0).toFixed(1);
+  document.getElementById('arch_summary').innerHTML = `
+    <div class="sc"><div class="sc-val">${totalJobs}</div><div class="sc-lbl">Total Jobs</div></div>
+    <div class="sc"><div class="sc-val">${totalUnits.toLocaleString()}</div><div class="sc-lbl">Total Units</div></div>
+    <div class="sc"><div class="sc-val">${avgUph}</div><div class="sc-lbl">Avg U/hr</div></div>
+    <div class="sc"><div class="sc-val">${totalHrs}</div><div class="sc-lbl">Total Run hrs</div></div>
+    <div class="sc"><div class="sc-val">${totalDT}</div><div class="sc-lbl">Total DT hrs</div></div>`;
+
+  // Render each department
+  renderArchiveSection('Scheduling',       'sched',   sorted.filter(d => d.opType === 'Scheduling'));
+  renderArchiveSection('Prepress',         'prepress',sorted.filter(d => d.opType === 'Prepress'));
+  renderArchiveSection('Press',            'press',   sorted.filter(d => d.opType === 'Press'));
+  renderArchiveSection('Folding',          'fold',    sorted.filter(d => d.opType === 'Folding'));
+  renderArchiveSection('Bindery',          'bind',    sorted.filter(d => d.opType === 'Bindery'));
+  renderArchiveSection('Finishing',        'finish',  sorted.filter(d => d.opType === 'Finishing'));
+  renderArchiveSection('Mailing',          'mail',    sorted.filter(d => d.opType === 'Mailing'));
+  renderArchiveSection('Fulfillment',      'fulfill', sorted.filter(d => d.opType === 'Fulfillment'));
+  renderArchiveSection('Shipping/Inventory','ship',   sorted.filter(d => d.opType === 'Shipping/Inventory'));
+}
+
+function archSortBy(col) {
+  if (archSort.col === col) {
+    archSort.dir = archSort.dir === 'asc' ? 'desc' : 'asc';
+  } else {
+    archSort.col = col;
+    archSort.dir = 'desc';
+  }
+  renderArchive();
+}
+
+function renderArchiveSection(opType, cls, rows) {
+  const countEl = document.getElementById('arch_'+cls+'_count');
+  const tableEl = document.getElementById('arch_'+cls+'_table');
+
+  countEl.textContent = rows.length + ' job' + (rows.length !== 1 ? 's' : '');
+
+  if (!rows.length) {
+    tableEl.innerHTML = '<div class="arch-empty">No completed jobs found for this department.</div>';
+    return;
+  }
+
+  const thClass = col => archSort.col === col
+    ? (archSort.dir === 'asc' ? 'sort-asc' : 'sort-desc') : '';
+
+  const showColors  = opType === 'Press';
+  const showFold    = opType === 'Folding';
+  const showSched   = opType === 'Scheduling';
+
+  tableEl.innerHTML = `<table class="arch-table">
+    <thead><tr>
+      <th class="${thClass('date')}"        onclick="archSortBy('date')">Date</th>
+      <th class="${thClass('jobNumber')}"   onclick="archSortBy('jobNumber')">Job #</th>
+      <th class="${thClass('poNumber')}"    onclick="archSortBy('poNumber')">PO #</th>
+      <th class="${thClass('operator')}"    onclick="archSortBy('operator')">Operator</th>
+      <th class="${thClass('machine')}"     onclick="archSortBy('machine')">Operation</th>
+      <th class="${thClass('qty')}"         onclick="archSortBy('qty')">Qty</th>
+      ${showSched ? `<th>Customer</th><th>Process</th><th>Days</th><th>Action</th>` : `
+      <th class="${thClass('pages')}"       onclick="archSortBy('pages')">Pages</th>
+      <th class="${thClass('sigs')}"        onclick="archSortBy('sigs')">Sigs</th>
+      <th class="${thClass('paperSize')}"   onclick="archSortBy('paperSize')">Paper Size</th>
+      <th class="${thClass('paperType')}"   onclick="archSortBy('paperType')">Paper Type</th>
+      ${showColors ? `<th class="${thClass('colors')}" onclick="archSortBy('colors')">Colors</th>` : ''}
+      ${showFold   ? `<th class="${thClass('foldType')}" onclick="archSortBy('foldType')">Fold Type</th>` : ''}
+      <th class="${thClass('mrHrs')}"       onclick="archSortBy('mrHrs')">MR hrs</th>
+      <th class="${thClass('prodHrs')}"     onclick="archSortBy('prodHrs')">Run hrs</th>
+      <th class="${thClass('totalUnits')}"  onclick="archSortBy('totalUnits')">Units</th>
+      <th class="${thClass('uph')}"         onclick="archSortBy('uph')">U/hr</th>
+      <th class="${thClass('totalDT')}"     onclick="archSortBy('totalDT')">DT hrs</th>
+      <th>DT Reasons</th>`}
+    </tr></thead>
+    <tbody>
+    ${rows.map(d => {
+      if (showSched) {
+        const schedDate   = d.scheduledAt ? new Date(d.scheduledAt.replace('T',' ')) : null;
+        const invoicedAt  = d.invoicedAt  ? new Date(d.invoicedAt.replace('T',' '))  : null;
+        const elapsed     = schedDate && invoicedAt
+          ? Math.floor((invoicedAt - schedDate) / 86400000)
+          : schedDate ? Math.floor((new Date() - schedDate) / 86400000) : '—';
+        const invoiced    = !!d.invoicedAt;
+        return `<tr>
+          <td class="mono">${d.date}</td>
+          <td><strong>${d.jobNumber||'—'}</strong></td>
+          <td class="mono">${d.poNumber||'—'}</td>
+          <td>${d.operator||'—'}</td>
+          <td><span class="arch-badge sched">${d.machine||'—'}</span></td>
+          <td class="mono">${d.qty ? d.qty.toLocaleString() : '—'}</td>
+          <td>${d.customer||'—'}</td>
+          <td>${d.printProcess||'—'}</td>
+          <td class="mono" style="${typeof elapsed==='number'&&elapsed>10?'color:var(--red);font-weight:700;':''}">${elapsed} day${elapsed!==1?'s':''}</td>
+          <td>${invoiced
+            ? `<span style="color:var(--green);font-weight:700;">✓ Invoiced ${d.invoicedAt.slice(0,10)}</span>`
+            : `<button class="btn btn-success btn-sm" onclick="markInvoiced('${d.id}')">✓ Mark Invoiced</button>`}
+          </td>
+        </tr>`;
+      }
+      const dtReasons = d.downtime && d.downtime.length
+        ? d.downtime.map(dt => dt.reason).filter(Boolean).join(', ')
+        : '—';
+      return `<tr>
+        <td class="mono">${d.date}</td>
+        <td><strong>${d.jobNumber||'—'}</strong></td>
+        <td class="mono">${d.poNumber||'—'}</td>
+        <td>${d.operator||'—'}</td>
+        <td><span class="arch-badge ${cls}">${d.machine||'—'}</span></td>
+        <td class="mono">${d.qty ? d.qty.toLocaleString() : '—'}</td>
+        <td>${d.paperType||'—'}</td>
+        ${showColors ? `<td>${d.colors||'—'}</td>` : ''}
+        ${showFold   ? `<td>${d.foldType||'—'}</td>` : ''}
+        <td class="mono">${d.mrHrs||0}</td>
+        <td class="mono">${d.prodHrs||0}</td>
+        <td class="mono"><strong>${(d.totalUnits||0).toLocaleString()}</strong></td>
+        <td><span class="uph-pill">${d.uph||0}</span></td>
+        <td>${(d.totalDT||0) > 0 ? `<span class="dt-pill">${d.totalDT}</span>` : '—'}</td>
+        <td style="max-width:180px;white-space:normal;font-size:.72rem;">${dtReasons}</td>
+      </tr>`;
+    }).join('')}
+    </tbody>
+  </table>`;
+}
+
+function exportArchive() {
+  const all      = getData().filter(d => d.status === 'complete');
+  const opFilter = document.getElementById('arch_op').value;
+  const search   = (document.getElementById('arch_search').value || '').toLowerCase();
+  const fromDate = document.getElementById('arch_from').value;
+  const toDate   = document.getElementById('arch_to').value;
+
+  const rows = all.filter(d => {
+    if (opFilter && d.opType !== opFilter) return false;
+    if (fromDate && d.date < fromDate) return false;
+    if (toDate   && d.date > toDate)   return false;
+    if (search && ![d.jobNumber, d.poNumber, d.operator, d.machine].join(' ').toLowerCase().includes(search)) return false;
+    return true;
+  });
+
+  if (!rows.length) { alert('No jobs to export with current filters.'); return; }
+
+  const headers = ['Date','Job #','PO #','Operation','Machine','Operator','Qty','Pages','Sigs',
+    'Paper Size','Paper Type','Colors','Fold Type','MR Hrs','Run Hrs','Net Prod Hrs',
+    'Total Units','U/hr','DT Hrs','DT Reasons'];
+
+  const csv = [headers, ...rows.map(d => [
+    d.date, d.jobNumber, d.poNumber, d.opType, d.machine, d.operator,
+    d.qty, d.pages, d.sigs, d.paperSize, d.paperType,
+    d.colors||'', d.foldType||'',
+    d.mrHrs||0, d.prodHrs||0, d.netProdHrs||d.prodHrs||0,
+    d.totalUnits, d.uph, d.totalDT||0,
+    (d.downtime||[]).map(dt=>dt.reason).filter(Boolean).join('; ')
+  ])].map(r => r.map(v => `"${v}"`).join(',')).join('\n');
+
+  const blob = new Blob([csv], { type:'text/csv' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url;
+  a.download = 'job_archive_' + localToday() + '.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+  toast('Archive exported ✓');
+}
+
+
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 2600);
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', function() {
+  setInterval(() => { document.getElementById('clock').textContent = new Date().toLocaleTimeString(); }, 1000);
+  document.getElementById('clock').textContent = new Date().toLocaleTimeString();
+  setInterval(() => { if (!document.getElementById('view_dash').classList.contains('hidden')) renderDashboard(); }, 30000);
+  setInterval(() => { if (!document.getElementById('view_active').classList.contains('hidden')) renderActiveJobs(); }, 60000);
+  setInterval(purgeOldJobs, 60 * 60 * 1000);
+  purgeOldJobs();
+  checkLogin();
+  renderActiveJobs();
+});
+</script>
+</body>
+</html>
