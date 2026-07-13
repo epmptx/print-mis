@@ -386,7 +386,7 @@ select:focus, input:focus { border-color:var(--accent); background:#fff; }
     <button class="ntab" onclick="showView('new',this)">＋ New Job</button>
     <button class="ntab" onclick="showView('dash',this)">📊 Dashboard</button>
     <button class="ntab" onclick="showView('archive',this)">🗂 Archive</button>
-    <button class="ntab" onclick="showView('report',this)">📄 Job Report</button>
+    <button class="ntab" onclick="showView('report',this)">📄 Reports</button>
     <button class="logout-btn" onclick="doLogout()" id="logout_btn" style="margin-left:12px;">⏻ Sign Out</button>
   </nav>
 </header>
@@ -1097,7 +1097,7 @@ function applyAccessControl() {
     if (role === 'operator') {
       if (btn.textContent.includes('Dashboard') ||
           btn.textContent.includes('Archive')   ||
-          btn.textContent.includes('Job Report')) {
+          btn.textContent.includes('Reports')) {
         btn.style.display = 'none';
       }
     }
