@@ -384,6 +384,7 @@ select:focus, input:focus { border-color:var(--accent); background:#fff; }
   <nav class="tab-nav">
     <button class="ntab active" onclick="showView('active',this)">📋 Active Jobs</button>
     <button class="ntab" onclick="showView('new',this)">＋ New Job</button>
+    <button class="ntab admin-only" onclick="showView('queue',this)">📥 Job Queue</button>
     <button class="ntab" onclick="showView('dash',this)">📊 Dashboard</button>
     <button class="ntab" onclick="showView('archive',this)">🗂 Archive</button>
     <button class="ntab" onclick="showView('report',this)">📄 Reports</button>
@@ -506,6 +507,27 @@ select:focus, input:focus { border-color:var(--accent); background:#fff; }
 
 </div>
 
+<!-- ═══ JOB QUEUE ═══ -->
+<div id="view_queue" class="content hidden">
+  <div class="view-header">
+    <h2 class="view-title">📥 Job Queue — Sheet Import</h2>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-secondary btn-sm" onclick="_queueJobs=[];document.getElementById('queue_content').innerHTML='<div style=\'text-align:center;padding:40px;color:var(--muted);\'>List cleared.</div>';document.getElementById('queue_status').innerHTML='Click <strong>Fetch from Sheet</strong> to reload.';">✕ Clear List</button>
+      <button class="btn btn-primary btn-sm" onclick="fetchJobQueue()">🔄 Fetch from Sheet</button>
+    </div>
+  </div>
+  <div id="queue_status" style="font-size:.82rem;color:var(--muted);margin-bottom:12px;">
+    Click <strong>Fetch from Sheet</strong> to load jobs from the EPMP Job Status Sheet.
+    Then click <strong>→ Schedule</strong> on any job to open the New Job form pre-filled.
+  </div>
+  <div id="queue_content">
+    <div style="text-align:center;padding:40px;color:var(--muted);">
+      <div style="font-size:2rem;">📥</div>
+      <div style="margin-top:8px;font-size:.85rem;">No jobs loaded yet — click Fetch from Sheet</div>
+    </div>
+  </div>
+</div>
+
 <!-- ═══ NEW JOB FORM ═══ -->
 <div id="view_new" class="content hidden">
   <div class="view-header">
@@ -605,9 +627,13 @@ select:focus, input:focus { border-color:var(--accent); background:#fff; }
       <div class="panel">
         <div class="panel-title">Job Specifications</div>
         <div class="panel-body">
-          <div class="row-2">
-            <div><label>Customer Name</label><input type="text" id="f_customer" placeholder="Customer name"></div>
-            <div><label>Due Date</label><input type="date" id="f_due_date"></div>
+          <div><label>Customer Name</label><input type="text" id="f_customer" placeholder="Customer name"></div>
+          <div class="row-2" style="margin-top:10px;">
+            <div><label>Order In Date</label><input type="date" id="f_order_date" oninput="calcLeadTimeDisplay()"></div>
+            <div><label>Due Date</label><input type="date" id="f_due_date" oninput="calcLeadTimeDisplay()"></div>
+          </div>
+          <div id="lead_time_display" style="display:none;margin-top:6px;padding:6px 12px;background:#f0f7ff;border-radius:6px;font-size:.78rem;color:#1a6e45;font-weight:700;border:1px solid #c8e6c9;">
+            ⏱ Lead Time: <span id="lead_time_val">—</span>
           </div>
           <label>Job Description</label>
           <input type="text" id="f_product_type" placeholder="e.g. 4-page brochure, #10 envelope, postcard">
@@ -806,6 +832,8 @@ select:focus, input:focus { border-color:var(--accent); background:#fff; }
     <div id="rpt_idle_jobs_content"></div>
   </div>
 </div>
+
+<!-- ═══ IMPORT FROM SHEET MODAL ═══ -->
 
 <!-- ═══ EDIT JOB MODAL ═══ -->
 <div id="edit_job_modal" class="modal-overlay hidden">
@@ -1127,6 +1155,9 @@ function applyAccessControl() {
 
   // Admins and managers see everything
   if (dept === 'all' || role === 'admin' || role === 'manager') return;
+
+  // Hide import button from operators
+  document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'none');
 
   // Hide + New Job tab for non-scheduling operators
   // Only Scheduling creates new jobs — others use "Begin Next Operation" on the card
@@ -1493,12 +1524,13 @@ function saveJob(job) { const d = getData(); const i = d.findIndex(j => j.id ===
 function showView(v, el) {
   document.querySelectorAll('.ntab').forEach(t => t.classList.remove('active'));
   if (el) el.classList.add('active');
-  ['active','new','dash','archive','report'].forEach(n =>
+  ['active','new','queue','dash','archive','report'].forEach(n =>
     document.getElementById('view_'+n).classList.toggle('hidden', n!==v)
   );
   if (v === 'active')  renderActiveJobs();
   if (v === 'dash')    renderDashboard();
   if (v === 'archive') renderArchive();
+  if (v === 'queue')   fetchJobQueue();
   if (v === 'report')  { showReport('job_lookup', document.querySelector('.rpt-tab')); }
 }
 
@@ -1580,7 +1612,140 @@ function autoFillJobForm(data) {
 }
 
 
-// ── EDIT JOB ──────────────────────────────────────────────────
+// ── JOB QUEUE ─────────────────────────────────────────────────
+let _queueJobs = []; // cached sheet jobs
+
+function fetchJobQueue() {
+  const content = document.getElementById('queue_content');
+  const status  = document.getElementById('queue_status');
+  content.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted);">⏳ Fetching from Google Sheets...</div>';
+
+  fetch(SHEET_URL + '?action=getAllJobs')
+    .then(r => r.json())
+    .then(data => {
+      if (data.status === 'error') {
+        content.innerHTML = `<div style="text-align:center;padding:40px;color:var(--red);">⚠ ${data.message}</div>`;
+        return;
+      }
+      _queueJobs = data.jobs || [];
+      renderJobQueue(_queueJobs);
+      status.innerHTML = `<strong>${_queueJobs.length} jobs</strong> loaded from Job Status Sheet.
+        Click <strong>→ Schedule</strong> to open the New Job form pre-filled for that job.`;
+    })
+    .catch(() => {
+      content.innerHTML = '<div style="text-align:center;padding:40px;color:var(--red);">❌ Cannot reach Google Sheets — are you on the live site?</div>';
+    });
+}
+
+function renderJobQueue(jobs) {
+  const content = document.getElementById('queue_content');
+  const existing = new Set(getData().map(j => (j.jobNumber||'').toLowerCase()));
+
+  if (!jobs.length) {
+    content.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted);">No jobs found in the sheet.</div>';
+    return;
+  }
+
+  // Search/filter
+  const search = (document.getElementById('queue_search_val') || {value:''}).value.toLowerCase();
+  // Sort by Order In Date earliest first
+  const sorted = [...jobs].sort((a,b) => (a.date||'').localeCompare(b.date||''));
+  const filtered = search
+    ? sorted.filter(j => [j.jobNumber,j.customer,j.poNumber,j.jobDesc].join(' ').toLowerCase().includes(search))
+    : sorted;
+
+  let html = `
+    <div style="display:flex;gap:10px;align-items:center;margin-bottom:12px;">
+      <input type="text" id="queue_search" placeholder="Filter by client, job #, description..."
+        style="flex:1;max-width:380px;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-size:.82rem;"
+        oninput="document.getElementById('queue_search_val') || (function(){var i=document.getElementById('queue_search');i.id='queue_search_val';})(); renderJobQueue(_queueJobs)">
+      <span style="font-size:.78rem;color:var(--muted);">${filtered.length} of ${jobs.length} jobs</span>
+    </div>
+    <div class="rpt-section">
+      <table class="rpt-table" style="font-size:.78rem;">
+        <thead>
+          <tr>
+            <th>Order In</th>
+            <th>Ticket #</th>
+            <th>Client</th>
+            <th>PO #</th>
+            <th>Due Date</th>
+            <th>Lead Time</th>
+            <th>Job Name / Part Number</th>
+            <th style="text-align:right;">QTY</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>`;
+
+  filtered.forEach((j, idx) => {
+    const inMIS    = existing.has((j.jobNumber||'').toLowerCase());
+    const overdue  = j.dueDate && j.dueDate < localToday();
+    const lt       = calcLeadTime(j.date, j.dueDate);
+    const ltDays   = j.date && j.dueDate ? Math.round((new Date(j.dueDate)-new Date(j.date))/86400000) : null;
+    const ltColor  = ltDays === null ? '' : ltDays <= 1 ? 'color:#e65100;font-weight:700;' : ltDays <= 3 ? 'color:#f57f17;font-weight:700;' : 'color:#1a6e45;';
+    html += `<tr style="${inMIS?'opacity:.45;background:#f9f9f9;':''}">
+      <td style="font-size:.72rem;white-space:nowrap;">${j.date||'—'}</td>
+      <td style="font-weight:700;white-space:nowrap;">${j.jobNumber}</td>
+      <td>${j.customer||'—'}</td>
+      <td style="font-size:.72rem;">${j.poNumber||'—'}</td>
+      <td style="white-space:nowrap;${overdue&&!inMIS?'color:var(--red);font-weight:700;':''};">${j.dueDate||'—'}</td>
+      <td style="white-space:nowrap;${ltColor}">${lt||'—'}</td>
+      <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${j.jobDesc||''}">${j.jobDesc||'—'}</td>
+      <td style="text-align:right;font-family:monospace;">${(j.qty||0).toLocaleString()}</td>
+      <td style="white-space:nowrap;">
+        ${inMIS
+          ? '<span style="font-size:.7rem;color:var(--muted);font-weight:700;">✓ In MIS</span>'
+          : `<button class="btn btn-primary btn-sm" onclick="scheduleFromQueue(${idx})" style="padding:5px 12px;font-size:.7rem;">→ Schedule</button>`
+        }
+      </td>
+    </tr>`;
+  });
+
+  html += '</tbody></table></div>';
+  content.innerHTML = html;
+
+  // Re-attach search input value preservation
+  const si = document.getElementById('queue_search');
+  if (si && search) si.value = search;
+}
+
+function scheduleFromQueue(idx) {
+  // Get the right job from filtered or full list
+  const search = (document.getElementById('queue_search') || {value:''}).value.toLowerCase();
+  const source = search
+    ? _queueJobs.filter(j => [j.jobNumber,j.customer,j.poNumber,j.jobDesc].join(' ').toLowerCase().includes(search))
+    : _queueJobs;
+  const job = source[idx];
+  if (!job) return;
+
+  // Switch to New Job tab
+  const newTab = document.querySelector('.ntab[onclick*="new"]');
+  showView('new', newTab);
+
+  // Pre-fill form fields
+  setTimeout(() => {
+    const set = (id, val) => { const el = document.getElementById(id); if (el && val) el.value = val; };
+    set('f_job',          job.jobNumber);
+    set('f_po',           job.poNumber);
+    set('f_customer',     job.customer);
+    set('f_order_date',   job.date);
+    set('f_due_date',     job.dueDate);
+    set('f_product_type', job.jobDesc);
+    set('f_qty',          job.qty || '');
+    calcLeadTimeDisplay();
+
+    // Scroll to top of form
+    document.getElementById('view_new').scrollTo(0, 0);
+    // Focus on operator field so admin can complete the form
+    const opEl = document.getElementById('f_operator');
+    if (opEl) opEl.focus();
+
+    toast('✓ Job ' + job.jobNumber + ' loaded — select Operator, Department and Machine to schedule');
+  }, 100);
+}
+
+
 function openEditModal(jobId) {
   const job = getData().find(j => j.id === jobId);
   if (!job) return;
@@ -1929,10 +2094,61 @@ function createScheduledJob() {
   const jobNumber   = document.getElementById('f_job').value.trim();
   const poNumber    = document.getElementById('f_po').value.trim();
   const customer    = document.getElementById('f_customer').value.trim();
+  const orderDate   = document.getElementById('f_order_date').value;
   const dueDate     = document.getElementById('f_due_date').value;
   const jobDesc     = document.getElementById('f_product_type').value.trim();
   const finishedSize= document.getElementById('f_finished_size').value.trim();
   const qty         = parseInt(document.getElementById('f_qty').value) || 0;
+
+  // Material Requisition fields
+  const mrProductType = document.getElementById('f_mr_product_type').value;
+  const paperTypeSel  = document.getElementById('f_paper_type_sel').value;
+  const paperWeight   = paperTypeSel === 'Other'
+    ? document.getElementById('f_paper_type_other').value.trim()
+    : paperTypeSel;
+  const parentSize    = document.getElementById('f_parent_size').value.trim();
+  const parentSheets  = parseInt(document.getElementById('f_parent_sheets').value) || 0;
+  const pressSize     = document.getElementById('f_press_size').value.trim();
+  const pressSheets   = parseInt(document.getElementById('f_press_sheets').value) || 0;
+  const pages         = parseInt(document.getElementById('f_pages').value) || 0;
+  const sigs          = parseInt(document.getElementById('f_sched_sigs').value) || 0;
+  const forms         = parseInt(document.getElementById('f_sched_forms').value) || 0;
+  const upOnPress     = parseInt(document.getElementById('f_up_on_press').value) || 0;
+  const wastePct      = parseFloat(document.getElementById('f_waste_pct').value) || 0;
+  const calcSheets    = parseInt(document.getElementById('f_calc_press_sheets').value) || 0;
+  const printProcess  = document.querySelector('input[name="print_process"]:checked')?.value || '';
+  const notes         = document.getElementById('f_sched_notes').value.trim();
+
+  if (!operator || !jobNumber) { alert('Operator and Job Number are required.'); return; }
+
+  const now      = localNow();
+  const leadTime = calcLeadTime(orderDate, dueDate);
+
+  const job = {
+    id: Date.now().toString(),
+    date: now.slice(0,10),
+    status: 'scheduled',
+    scheduledAt: now,
+    operator, jobNumber, poNumber, customer,
+    orderDate, dueDate, leadTime,
+    opType: 'Scheduling',
+    machine: 'Job Intake & Scheduling',
+    jobDesc, finishedSize, qty,
+    mrProductType, paperWeight, parentSize, parentSheets,
+    pressSize, pressSheets: calcSheets || pressSheets,
+    pages, sigs, forms, upOnPress, wastePct,
+    printProcess, notes,
+    totalUnits: 0, totalDT: 0, prodLogs: [], downtime: []
+  };
+
+  const all = getData();
+  all.push(job);
+  setData(all);
+  resetNewForm();
+  showView('active', document.querySelectorAll('.ntab')[0]);
+  renderActiveJobs();
+  toast('✓ Job ' + jobNumber + ' scheduled' + (leadTime ? ' — ' + leadTime + ' lead time' : '') + '!');
+}
 
   // Material Requisition fields
   const mrProductType = document.getElementById('f_mr_product_type').value;
@@ -1971,15 +2187,6 @@ function createScheduledJob() {
     printProcess, notes,
     totalUnits: 0, totalDT: 0, prodLogs: [], downtime: []
   };
-
-  const all = getData();
-  all.push(job);
-  setData(all);
-  resetNewForm();
-  showView('active', document.querySelectorAll('.ntab')[0]);
-  renderActiveJobs();
-  toast('✓ Job ' + jobNumber + ' scheduled!');
-}
 
 // ── MATERIAL REQUISITION ──────────────────────────────────────
 function openMR(jobId) {
@@ -2261,12 +2468,14 @@ function renderDueReport(range) {
   let html = '';
   if (overdue.length) {
     html += `<div class="rpt-section"><div class="rpt-section-title" style="background:var(--red);">⚠ Overdue (${overdue.length})</div>
-      <table class="rpt-table"><thead><tr><th>Job #</th><th>Customer</th><th>Due Date</th><th>Description</th><th>Current Dept</th><th>Status</th></tr></thead><tbody>`;
+      <table class="rpt-table"><thead><tr><th>Job #</th><th>Customer</th><th>Due Date</th><th>Lead Time</th><th>Description</th><th>Current Dept</th><th>Status</th></tr></thead><tbody>`;
     overdue.forEach(j => {
+      const lt = calcLeadTime(j.orderDate, j.dueDate);
       html += `<tr style="background:#fff5f5;">
         <td style="font-weight:700;color:var(--red);">${j.jobNumber}</td>
         <td>${j.customer||'—'}</td>
         <td style="color:var(--red);font-weight:700;">${j.dueDate}</td>
+        <td style="font-size:.75rem;color:var(--muted);">${lt||'—'}</td>
         <td style="font-size:.75rem;">${j.jobDesc||j.mrProductType||'—'}</td>
         <td>${j.opType||'—'}</td>
         <td>${j.status}</td>
@@ -2276,13 +2485,18 @@ function renderDueReport(range) {
   }
 
   html += `<div class="rpt-section"><div class="rpt-section-title">Jobs Due ${range==='today'?'Today':'This Week'} (${onTime.length})</div>
-    <table class="rpt-table"><thead><tr><th>Job #</th><th>Customer</th><th>Due Date</th><th>Description</th><th>Qty</th><th>Current Dept</th><th>Status</th></tr></thead><tbody>`;
+    <table class="rpt-table"><thead><tr><th>Job #</th><th>Customer</th><th>Due Date</th><th>Lead Time</th><th>Order In</th><th>Description</th><th>Qty</th><th>Current Dept</th><th>Status</th></tr></thead><tbody>`;
   onTime.forEach(j => {
     const isToday = j.dueDate === today;
+    const lt      = calcLeadTime(j.orderDate, j.dueDate);
+    const ltDays  = j.orderDate && j.dueDate ? Math.round((new Date(j.dueDate)-new Date(j.orderDate))/86400000) : null;
+    const ltColor = ltDays !== null && ltDays <= 1 ? 'color:#e65100;font-weight:700;' : ltDays !== null && ltDays <= 3 ? 'color:#f57f17;font-weight:700;' : '';
     html += `<tr>
       <td style="font-weight:700;">${j.jobNumber}</td>
       <td>${j.customer||'—'}</td>
       <td style="${isToday?'color:var(--accent);font-weight:700;':''};">${j.dueDate}${isToday?' ← TODAY':''}</td>
+      <td style="font-size:.75rem;${ltColor}">${lt||'—'}</td>
+      <td style="font-size:.72rem;color:var(--muted);">${j.orderDate||'—'}</td>
       <td style="font-size:.75rem;">${j.jobDesc||j.mrProductType||'—'}</td>
       <td class="mono">${(j.qty||0).toLocaleString()}</td>
       <td>${j.opType||'—'}</td>
@@ -2505,7 +2719,7 @@ function createJob() {
 
 function resetNewForm() {
   ['f_operator','f_job','f_po','f_optype','f_machine',
-   'f_customer','f_due_date','f_product_type','f_finished_size','f_qty',
+   'f_customer','f_order_date','f_due_date','f_product_type','f_finished_size','f_qty',
    'f_mr_product_type','f_paper_type_sel','f_paper_type_other',
    'f_parent_size','f_parent_sheets','f_press_size','f_press_sheets',
    'f_pages','f_sched_sigs','f_sched_forms','f_up_on_press',
@@ -3262,7 +3476,37 @@ function localToday() {
   return new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0,10);
 }
 
-// ── DASHBOARD ─────────────────────────────────────────────────────────────────
+// ── LEAD TIME HELPERS ─────────────────────────────────────────
+function calcLeadTime(orderDate, dueDate) {
+  if (!orderDate || !dueDate) return null;
+  const days = Math.round((new Date(dueDate) - new Date(orderDate)) / 86400000);
+  if (days < 0)   return 'Past Due at Order';
+  if (days === 0) return 'Same Day';
+  if (days === 1) return 'Next Day';
+  if (days <= 3)  return days + '-Day Rush';
+  if (days <= 7)  return days + ' Days';
+  if (days <= 14) return '2 Weeks';
+  if (days <= 21) return '3 Weeks';
+  return Math.round(days/7) + ' Weeks';
+}
+
+function calcLeadTimeDisplay() {
+  const orderDate = (document.getElementById('f_order_date')||{}).value;
+  const dueDate   = (document.getElementById('f_due_date')||{}).value;
+  const div = document.getElementById('lead_time_display');
+  const val = document.getElementById('lead_time_val');
+  if (!div) return;
+  if (!orderDate || !dueDate) { div.style.display = 'none'; return; }
+  const days = Math.round((new Date(dueDate) - new Date(orderDate)) / 86400000);
+  const lt   = calcLeadTime(orderDate, dueDate);
+  div.style.display     = 'block';
+  div.style.background  = days <= 1 ? '#fff3e0' : days <= 3 ? '#fff8e1' : '#f0f7ff';
+  div.style.borderColor = days <= 1 ? '#ffcc80' : days <= 3 ? '#ffe082' : '#c8e6c9';
+  div.style.color       = days <= 1 ? '#e65100' : days <= 3 ? '#f57f17' : '#1a6e45';
+  val.textContent = lt + (days >= 0 ? ' (' + days + ' days)' : '');
+}
+
+
 function renderDashboard() {
   const all     = getData();
   const today   = localToday();
