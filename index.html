@@ -1,0 +1,1007 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Print MIS</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow:wght@400;600;700;900&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js" async></script>
+<link rel="stylesheet" href="style.css">
+
+</head>
+<body>
+
+<!-- ═══ LOGIN SCREEN ═══ -->
+<div id="login_overlay" class="login-overlay">
+  <div class="login-box">
+    <div class="login-logo">
+      <h1>⚙ Print MIS</h1>
+      <p>Production Management System</p>
+    </div>
+    <div class="login-field">
+      <label>Username</label>
+      <input type="text" id="login_user" placeholder="Enter username"
+        autocomplete="username" autocapitalize="none" spellcheck="false">
+    </div>
+    <div class="login-field">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+        <label style="margin-bottom:0;">Password</label>
+        <span id="pw_toggle" style="font-size:.65rem;font-weight:700;color:var(--accent);cursor:pointer;text-decoration:underline;">SHOW</span>
+      </div>
+      <input type="password" id="login_pass" placeholder="Enter password" autocomplete="current-password">
+    </div>
+    <button class="btn-login" id="login_btn">Sign In</button>
+    <div class="login-error" id="login_error">Incorrect username or password.</div>
+  </div>
+  <div class="login-footer">EPMP Print MIS · Authorized Users Only</div>
+</div>
+
+<header>
+  <div class="hdr-left">
+    <h1>⚙ Print MIS</h1>
+    <span id="clock"></span>
+    <span id="user_tag" style="font-size:.7rem;color:rgba(255,255,255,.5);font-weight:600;letter-spacing:.06em;text-transform:uppercase;"></span>
+  </div>
+  <nav class="tab-nav">
+    <button class="ntab active" id="nav_active" onclick="showView('active',this)">📋 Active Jobs</button>
+    <button class="ntab" id="nav_new" onclick="showView('new',this)">＋ New Job</button>
+    <button class="ntab admin-only" id="nav_queue" onclick="showView('queue',this)">📥 Job Queue</button>
+    <button class="ntab" id="nav_dash" onclick="showView('dash',this)">📊 Dashboard</button>
+    <button class="ntab" id="nav_archive" onclick="showView('archive',this)">🗂 Archive</button>
+    <button class="ntab" id="nav_report" onclick="showView('report',this)">📄 Reports</button>
+    <button class="ntab" id="nav_help" onclick="showView('help',this)">❓ Help</button>
+    <button class="logout-btn" id="nav_logout" onclick="doLogout()" style="margin-left:12px;">⏻ Sign Out</button>
+  </nav>
+</header>
+
+<!-- ═══ ACTIVE JOBS ═══ -->
+<div id="view_active" class="content">
+  <div class="view-header">
+    <h2 class="view-title">Active Jobs</h2>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <div id="sync_status" style="font-size:.72rem;padding:5px 12px;background:#f8f8f8;border-radius:6px;border:1px solid var(--border);">⟳ Loading…</div>
+      <button class="btn btn-secondary btn-sm" onclick="manualSync()" title="Refresh jobs from Google Sheets">🔄 Sync</button>
+      <button class="btn btn-secondary btn-sm" onclick="togglePreviewTimers(this)" id="btn_preview_timers">⚡ Preview Timer Alerts</button>
+      <button class="btn btn-new" onclick="showView('new', document.getElementById('nav_new'))">＋ New Job</button>
+      <button class="btn btn-sm admin-only" onclick="hardReset()" style="background:#c0392b;color:#fff;border:none;padding:6px 12px;border-radius:6px;font-size:.72rem;font-weight:700;cursor:pointer;" title="Admin only — wipe ALL jobs from Sheets and all devices">⚠ Hard Reset</button>
+    </div>
+  </div>
+
+  <!-- Job Number Lookup Bar -->
+  <div style="display:flex;gap:10px;align-items:center;margin-bottom:20px;padding:14px 18px;background:#13131f;border-radius:10px;border:1px solid #2a2a3e;">
+    <div style="font-size:.7rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);white-space:nowrap;">🔍 Job Lookup</div>
+    <div class="scan-wrap" style="flex:1;max-width:320px;">
+      <input type="text" id="active_job_search" placeholder="Scan barcode or type job number..."
+        style="font-size:.85rem;padding:8px 14px;"
+        oninput="this.value=formatJobNumber(this.value); activeJobLookup(this.value)"
+        onkeydown="if(event.key==='Enter') activeJobLookup(this.value)">
+      <button class="btn-scan" onclick="openScanner('active_job_search','Job Number',function(v){activeJobLookup(v);})" title="Scan barcode">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+      </button>
+    </div>
+    <button class="btn btn-primary btn-sm" onclick="activeJobLookup(document.getElementById('active_job_search').value)">Find Job</button>
+    <div id="active_lookup_clear" style="display:none;">
+      <button class="btn btn-secondary btn-sm" onclick="clearActiveJobLookup()">✕ Clear</button>
+    </div>
+  </div>
+
+  <!-- Lookup Result Card -->
+  <div id="active_lookup_result" class="hidden" style="margin-bottom:20px;border-radius:10px;overflow:hidden;border:2px solid var(--accent);animation:fadeIn .3s;"></div>
+
+  <!-- Timer preview strip — shown when preview mode is on -->
+  <div id="timer_preview_strip" class="hidden" style="display:none;gap:12px;margin-bottom:20px;flex-wrap:wrap;">
+    <div style="display:flex;align-items:center;gap:8px;background:rgba(230,126,34,.08);border:1px solid rgba(230,126,34,.3);border-radius:8px;padding:10px 14px;">
+      <span style="font-size:.68rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);">Production Alert →</span>
+      <button class="btn-log-alert" style="width:auto;padding:7px 14px;font-size:.72rem;"><span class="blink-dot"></span>⚠ Log Units Now</button>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;background:rgba(230,126,34,.08);border:1px solid rgba(230,126,34,.3);border-radius:8px;padding:10px 14px;">
+      <span style="font-size:.68rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);">Make Ready Alert →</span>
+      <span class="stage-badge makeready mr-overtime-badge">⚠ MR Overtime</span>
+      <span style="font-size:.68rem;color:var(--muted);">+ card border flashes</span>
+    </div>
+  </div>
+
+  <!-- Scheduling -->
+  <div id="dept_sched_section">
+    <div class="dept-header">
+      <div class="dept-dot" style="background:#2ecc71"></div>
+      <div class="dept-title">Scheduling</div>
+      <div class="dept-count" id="dept_sched_count"></div>
+    </div>
+    <div class="jobs-grid" id="dept_sched_list"></div>
+  </div>
+
+  <!-- Prepress -->
+  <div id="dept_prepress_section" style="margin-top:24px;">
+    <div class="dept-header">
+      <div class="dept-dot" style="background:#9b59b6"></div>
+      <div class="dept-title">Prepress</div>
+      <div class="dept-count" id="dept_prepress_count"></div>
+    </div>
+    <div class="jobs-grid" id="dept_prepress_list"></div>
+  </div>
+
+  <!-- Press -->
+  <div id="dept_press_section" style="margin-top:24px;">
+    <div class="dept-header">
+      <div class="dept-dot" style="background:var(--press)"></div>
+      <div class="dept-title">Press</div>
+      <div class="dept-count" id="dept_press_count"></div>
+    </div>
+    <div class="jobs-grid" id="dept_press_list"></div>
+  </div>
+
+  <!-- Folding -->
+  <div id="dept_fold_section" style="margin-top:24px;">
+    <div class="dept-header">
+      <div class="dept-dot" style="background:var(--fold)"></div>
+      <div class="dept-title">Folding</div>
+      <div class="dept-count" id="dept_fold_count"></div>
+    </div>
+    <div class="jobs-grid" id="dept_fold_list"></div>
+  </div>
+
+  <!-- Bindery -->
+  <div id="dept_bind_section" style="margin-top:24px;">
+    <div class="dept-header">
+      <div class="dept-dot" style="background:var(--bind)"></div>
+      <div class="dept-title">Bindery</div>
+      <div class="dept-count" id="dept_bind_count"></div>
+    </div>
+    <div class="jobs-grid" id="dept_bind_list"></div>
+  </div>
+
+  <!-- Finishing -->
+  <div id="dept_finish_section" style="margin-top:24px;">
+    <div class="dept-header">
+      <div class="dept-dot" style="background:#1abc9c"></div>
+      <div class="dept-title">Finishing</div>
+      <div class="dept-count" id="dept_finish_count"></div>
+    </div>
+    <div class="jobs-grid" id="dept_finish_list"></div>
+  </div>
+
+  <!-- Outsourcing -->
+  <div id="dept_outsource_section" style="margin-top:24px;">
+    <div class="dept-header">
+      <div class="dept-dot" style="background:#8e44ad"></div>
+      <div class="dept-title">Outsourcing</div>
+      <div class="dept-count" id="dept_outsource_count"></div>
+    </div>
+    <div class="jobs-grid" id="dept_outsource_list"></div>
+  </div>
+
+  <!-- Mailing -->
+  <div id="dept_mail_section" style="margin-top:24px;">
+    <div class="dept-header">
+      <div class="dept-dot" style="background:#3498db"></div>
+      <div class="dept-title">Mailing</div>
+      <div class="dept-count" id="dept_mail_count"></div>
+    </div>
+    <div class="jobs-grid" id="dept_mail_list"></div>
+  </div>
+
+  <!-- Fulfillment -->
+  <div id="dept_fulfill_section" style="margin-top:24px;">
+    <div class="dept-header">
+      <div class="dept-dot" style="background:#e67e22"></div>
+      <div class="dept-title">Fulfillment</div>
+      <div class="dept-count" id="dept_fulfill_count"></div>
+    </div>
+    <div class="jobs-grid" id="dept_fulfill_list"></div>
+  </div>
+
+  <!-- Shipping/Inventory -->
+  <div id="dept_ship_section" style="margin-top:24px;">
+    <div class="dept-header">
+      <div class="dept-dot" style="background:var(--gray)"></div>
+      <div class="dept-title">Shipping/Inventory</div>
+      <div class="dept-count" id="dept_ship_count"></div>
+    </div>
+    <div class="jobs-grid" id="dept_ship_list"></div>
+  </div>
+
+</div>
+
+<!-- ═══ JOB QUEUE ═══ -->
+<div id="view_queue" class="content hidden">
+  <div class="view-header">
+    <h2 class="view-title">📥 Job Queue — Sheet Import</h2>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-secondary btn-sm" onclick="_queueJobs=[];document.getElementById('queue_content').innerHTML='<div style=\'text-align:center;padding:40px;color:var(--muted);\'>List cleared.</div>';document.getElementById('queue_status').innerHTML='Click <strong>Fetch from Sheet</strong> to reload.';">✕ Clear List</button>
+      <button class="btn btn-primary btn-sm" onclick="fetchJobQueue()">🔄 Fetch from Sheet</button>
+    </div>
+  </div>
+  <div id="queue_status" style="font-size:.82rem;color:var(--muted);margin-bottom:12px;">
+    Click <strong>Fetch from Sheet</strong> to load jobs from the EPMP Job Status Sheet.
+    Then click <strong>→ Schedule</strong> on any job to open the New Job form pre-filled.
+  </div>
+  <div id="queue_content">
+    <div style="text-align:center;padding:40px;color:var(--muted);">
+      <div style="font-size:2rem;">📥</div>
+      <div style="margin-top:8px;font-size:.85rem;">No jobs loaded yet — click Fetch from Sheet</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ NEW JOB FORM ═══ -->
+<div id="view_new" class="content hidden">
+  <div class="view-header">
+    <h2 class="view-title">New Job Setup</h2>
+    <button class="btn btn-secondary" onclick="showView('active', document.getElementById('nav_active'))">← Back to Jobs</button>
+  </div>
+  <div class="form-grid">
+    <div>
+      <div class="panel">
+        <div class="panel-title">Operator &amp; Job Info</div>
+        <div class="panel-body">
+          <label>Operator Name</label>
+          <select id="f_operator">
+            <option value="">— Select Operator —</option>
+            <optgroup label="── Management ──">
+              <option>Victor C.</option>
+              <option>Carlos V.</option>
+              <option>Ismael G.</option>
+              <option>Frank A.</option>
+              <option>Jorge B.</option>
+              <option>Eddie A.</option>
+            </optgroup>
+            <optgroup label="── Prepress ──">
+              <option>Aaron G.</option>
+              <option>Emma M.</option>
+              <option>Humberto E.</option>
+              <option>Nate R.</option>
+            </optgroup>
+            <optgroup label="── Press ──">
+              <option>Jose R.</option>
+              <option>Victor G.</option>
+              <option>Tony H.</option>
+            </optgroup>
+            <optgroup label="── Bindery / Mailing ──">
+              <option>Becky B.</option>
+              <option>Danny T.</option>
+              <option>David C.</option>
+              <option>Gabriela P.</option>
+              <option>Hector M.</option>
+              <option>Jonhyel G.</option>
+              <option>Leo R.</option>
+              <option>Miriam A.</option>
+              <option>Patrick E.</option>
+              <option>Paul A.</option>
+              <option>Rosa D.</option>
+              <option>Ruben T.</option>
+            </optgroup>
+          </select>
+          <div class="row-2">
+            <div>
+              <label>Job Number</label>
+              <div class="scan-wrap">
+                <input type="text" id="f_job" placeholder="e.g. 26-1448"
+                  oninput="this.value=formatJobNumber(this.value); scheduleJobLookup(this.value)">
+                <button class="btn-scan" onclick="openScanner('f_job','Job Number')" title="Scan QR Code"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></button>
+              </div>
+              <div id="job_lookup_status" style="font-size:.68rem;color:var(--muted);margin-top:4px;min-height:14px;"></div>
+            </div>
+            <div>
+              <label>PO Number</label>
+              <input type="text" id="f_po" placeholder="e.g. PO-5521">
+            </div>
+          </div>
+          <label>Department</label>
+          <select id="f_optype" onchange="onOpChange()">
+            <option value="">— Select Department —</option>
+            <option value="Scheduling">Scheduling</option>
+            <option value="Prepress">Prepress</option>
+            <option value="Press">Press</option>
+            <option value="Folding">Folding</option>
+            <option value="Bindery">Bindery</option>
+            <option value="Finishing">Finishing</option>
+            <option value="Mailing">Mailing</option>
+            <option value="Fulfillment">Fulfillment</option>
+            <option value="Shipping/Inventory">Shipping/Inventory</option>
+          </select>
+          <label>Operation</label>
+          <select id="f_machine"><option value="">— Select Department First —</option></select>
+
+          <!-- Fulfillment: open text -->
+          <div id="field_fulfillment_notes" class="hidden">
+            <label>Fulfillment Notes</label>
+            <textarea id="f_fulfillment_notes" rows="4" placeholder="Describe fulfillment activity..." style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-family:'Barlow',sans-serif;font-size:.85rem;resize:vertical;"></textarea>
+          </div>
+
+          <!-- Shipping/Inventory: function selector + notes -->
+          <div id="field_shipping_func" class="hidden">
+            <label>Shipping Function</label>
+            <div style="display:flex;gap:16px;margin-bottom:10px;">
+              <label style="display:flex;align-items:center;gap:6px;font-weight:600;cursor:pointer;">
+                <input type="radio" name="ship_func" value="Out for Delivery" id="ship_delivery"> Out for Delivery
+              </label>
+              <label style="display:flex;align-items:center;gap:6px;font-weight:600;cursor:pointer;">
+                <input type="radio" name="ship_func" value="Hold for Inventory" id="ship_inventory"> Hold for Inventory
+              </label>
+            </div>
+            <label>Shipping Notes</label>
+            <textarea id="f_shipping_notes" rows="3" placeholder="Carrier, tracking, location notes..." style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-family:'Barlow',sans-serif;font-size:.85rem;resize:vertical;"></textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <!-- ── JOB SPECIFICATIONS ───────────────────────────────── -->
+      <div class="panel">
+        <div class="panel-title">Job Specifications</div>
+        <div class="panel-body">
+          <div><label>Customer Name</label><input type="text" id="f_customer" placeholder="Customer name"></div>
+          <div class="row-2" style="margin-top:10px;">
+            <div><label>Order In Date</label><input type="date" id="f_order_date" oninput="calcLeadTimeDisplay()"></div>
+            <div><label>Due Date</label><input type="date" id="f_due_date" oninput="calcLeadTimeDisplay()"></div>
+          </div>
+          <div id="lead_time_display" style="display:none;margin-top:6px;padding:6px 12px;background:#f0f7ff;border-radius:6px;font-size:.78rem;color:#1a6e45;font-weight:700;border:1px solid #c8e6c9;">
+            ⏱ Lead Time: <span id="lead_time_val">—</span>
+          </div>
+          <label>Job Description</label>
+          <input type="text" id="f_product_type" placeholder="e.g. 4-page brochure, #10 envelope, postcard">
+          <div class="row-2" style="margin-top:10px;">
+            <div><label>Quantity</label><input type="number" id="f_qty" placeholder="5000" min="0"></div>
+            <div><label>Finished Size</label><input type="text" id="f_finished_size" placeholder='e.g. 8.5" x 11"'></div>
+          </div>
+          <div id="field_colors" class="hidden">
+            <label>Colors</label>
+            <select id="f_colors">
+              <option value="">— Select —</option>
+              <option>4/0 (4 color front only)</option>
+              <option>4/4 (4 color both sides)</option>
+              <option>1/1 (black both sides)</option>
+            </select>
+          </div>
+          <div id="field_fold" class="hidden">
+            <label>Fold Type</label>
+            <select id="f_fold">
+              <option value="">— Select —</option>
+              <option>FT01_[H+H+DPF]</option><option>FT02_[H+H+DPF]</option>
+              <option>FT03_[DPF+DPF]</option><option>FT04_[H+DPF]</option>
+              <option>FT05_[Z+H]</option><option>FT06_[TRI+H]</option>
+              <option>FT07_[DPF+H]</option><option>FT08_[H+H]</option>
+              <option>FT09_[H]</option><option>FT10_[Z+DPF]</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── MATERIAL REQUISITION ───────────────────────────────── -->
+      <div id="sched_panel" class="hidden">
+        <div class="panel" style="margin-top:12px;">
+          <div class="panel-title">📋 Material Requisition</div>
+          <div class="panel-body">
+
+            <!-- Product Type -->
+            <label>Product Type</label>
+            <select id="f_mr_product_type">
+              <option value="">— Select Product Type —</option>
+              <option>Banners</option>
+              <option>Booklet</option>
+              <option>Brochures</option>
+              <option>Business Card</option>
+              <option>Clamshell</option>
+              <option>Door Hangers</option>
+              <option>Envelopes</option>
+              <option>Flyers</option>
+              <option>Folding Carton</option>
+              <option>Forms</option>
+              <option>Label</option>
+              <option>Pocket Folders</option>
+              <option>Postcard</option>
+              <option>Posters</option>
+              <option>Pushcard</option>
+              <option>Signage</option>
+            </select>
+
+            <!-- Paper Type -->
+            <label style="margin-top:10px;display:block;">Paper Type</label>
+            <select id="f_paper_type_sel" onchange="onPaperTypeChange()">
+              <option value="">— Select Paper Type —</option>
+              <option>50lb Uncoated Text</option>
+              <option>60lb Uncoated Text</option>
+              <option>70lb Uncoated Text</option>
+              <option>80lb Uncoated Text</option>
+              <option>80lb Coated Text</option>
+              <option>100lb Coated Text</option>
+              <option>100lb Coated Cover</option>
+              <option>80lb Gloss Cover</option>
+              <option>100lb Gloss Cover</option>
+              <option>14pt Card Stock</option>
+              <option>16pt Card Stock</option>
+              <option>Other</option>
+            </select>
+            <div id="f_paper_type_other_wrap" class="hidden" style="margin-top:6px;">
+              <input type="text" id="f_paper_type_other" placeholder="Describe paper type...">
+            </div>
+
+            <!-- Sheet specs -->
+            <div class="row-2" style="margin-top:10px;">
+              <div><label>Parent Size</label><input type="text" id="f_parent_size" placeholder='e.g. 26" x 40"'></div>
+              <div><label>Parent Sheets</label><input type="number" id="f_parent_sheets" min="0" placeholder="e.g. 500"></div>
+            </div>
+            <div class="row-2">
+              <div><label>Press Size</label><input type="text" id="f_press_size" placeholder='e.g. 13" x 20"'></div>
+              <div><label>Press Sheets</label><input type="number" id="f_press_sheets" min="0" placeholder="e.g. 2500"></div>
+            </div>
+            <div class="row-2">
+              <div><label>No. of Pages</label><input type="number" id="f_pages" min="0" placeholder="e.g. 8"></div>
+              <div><label>No. of Signatures</label><input type="number" id="f_sched_sigs" min="0" placeholder="e.g. 4"></div>
+            </div>
+            <div class="row-2">
+              <div><label>No. of Forms</label><input type="number" id="f_sched_forms" min="0" placeholder="e.g. 2"></div>
+              <div><label>Up on Press</label><input type="number" id="f_up_on_press" min="1" placeholder="e.g. 4"></div>
+            </div>
+
+            <!-- Print Process -->
+            <label style="margin-top:4px;display:block;">Print Process</label>
+            <div style="display:flex;flex-wrap:wrap;gap:12px;margin-bottom:12px;">
+              <label style="display:flex;align-items:center;gap:6px;font-weight:600;cursor:pointer;"><input type="radio" name="print_process" value="Offset" onchange="onPrintProcessChange(this)"> Offset</label>
+              <label style="display:flex;align-items:center;gap:6px;font-weight:600;cursor:pointer;"><input type="radio" name="print_process" value="Digital" onchange="onPrintProcessChange(this)"> Digital</label>
+              <label style="display:flex;align-items:center;gap:6px;font-weight:600;cursor:pointer;"><input type="radio" name="print_process" value="Outsource" onchange="onPrintProcessChange(this)"> Outsource to Vendor</label>
+              <label style="display:flex;align-items:center;gap:6px;font-weight:600;cursor:pointer;"><input type="radio" name="print_process" value="Pull from Inventory" onchange="onPrintProcessChange(this)"> Pull from Inventory</label>
+              <label style="display:flex;align-items:center;gap:6px;font-weight:600;cursor:pointer;"><input type="radio" name="print_process" value="Other" onchange="onPrintProcessChange(this)"> Other</label>
+            </div>
+            <!-- Vendor name — shown when Outsource is selected -->
+            <div id="vendor_name_wrap" style="display:none;margin-top:10px;">
+              <label>Vendor / Company Name</label>
+              <input type="text" id="f_vendor_name" placeholder="e.g. ABC Bindery, XYZ Mailing House...">
+              <label style="margin-top:10px;">Contact Name</label>
+              <input type="text" id="f_vendor_contact" placeholder="e.g. John Smith">
+              <label style="margin-top:10px;">Contact Phone / Email</label>
+              <input type="text" id="f_vendor_info" placeholder="e.g. 915-555-1234 or vendor@email.com">
+            </div>
+
+            <!-- Waste & Calc -->
+            <div class="row-2">
+              <div><label>Waste %</label><input type="number" id="f_waste_pct" min="0" max="100" placeholder="e.g. 5"></div>
+              <div>
+                <label>Calculated Press Sheets</label>
+                <div style="display:flex;gap:8px;align-items:center;">
+                  <input type="number" id="f_calc_press_sheets" placeholder="Auto-calculated" readonly style="background:#f0f0f0;flex:1;">
+                  <button class="btn btn-secondary btn-sm" onclick="calcPressSheets()" style="white-space:nowrap;">⟳ Calc</button>
+                </div>
+              </div>
+            </div>
+
+            <label style="margin-top:4px;display:block;">Scheduling Notes</label>
+            <textarea id="f_sched_notes" rows="3" placeholder="Additional notes, special instructions..." style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-family:'Barlow',sans-serif;font-size:.85rem;resize:vertical;"></textarea>
+          </div>
+        </div>
+      </div>
+      <div style="background:rgba(240,165,0,0.08);border:1px solid rgba(240,165,0,0.25);border-radius:6px;padding:10px 14px;margin-bottom:12px;" id="mr_start_panel">
+        <div style="font-size:.62rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:6px;">Make Ready Start Time</div>
+        <div class="time-row">
+          <input type="datetime-local" id="f_mr_start_time">
+          <button class="btn-now" onclick="setNow('f_mr_start_time')">⚡ Now</button>
+        </div>
+        <div style="font-size:.65rem;color:var(--muted);margin-top:6px;">Leave blank to use current time automatically</div>
+      </div>
+      <button class="btn btn-primary" style="width:100%;padding:13px;font-size:.88rem;" onclick="createJob()" id="btn_create_job">✓ Create Job &amp; Start Make Ready</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ HELP ═══ -->
+<div id="view_help" class="content hidden">
+  <div class="view-header">
+    <h2 class="view-title">❓ Help & Reference</h2>
+  </div>
+
+  <!-- Help sub-tabs -->
+  <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:18px;border-bottom:2px solid var(--border);padding-bottom:10px;">
+    <button class="rpt-tab active" onclick="showHelp('workflow',this)">📋 Workflow</button>
+    <button class="rpt-tab" onclick="showHelp('roles',this)">👤 Roles</button>
+    <button class="rpt-tab" onclick="showHelp('depts',this)">🏭 Departments</button>
+    <button class="rpt-tab" onclick="showHelp('reports_guide',this)">📊 Reports</button>
+    <button class="rpt-tab" onclick="showHelp('passwords',this)">🔑 Passwords</button>
+  </div>
+
+  <!-- WORKFLOW -->
+  <div id="help_workflow" class="rpt-panel">
+    <div class="rpt-section">
+      <div class="rpt-section-title" style="background:#BA7517;">Pre-MIS — Job Intake</div>
+      <div style="padding:16px 18px;font-size:.82rem;line-height:1.8;">
+        <strong>1.</strong> Sales Won → QuickBooks Estimate → Convert to Work Order<br>
+        <strong>2.</strong> Email sent to CSR → Work Order printed<br>
+        <strong>3.</strong> Job data entered in EPMP Job Status Sheet<br>
+        <strong>4.</strong> Comment Card generated and printed<br>
+        <strong>5.</strong> Plastic Job Jacket assembled (Work Order + Delivery Slip + Samples + Comment Card)<br>
+        <strong>6.</strong> Job Jacket placed with Scheduling for MIS entry
+      </div>
+    </div>
+    <div class="rpt-section">
+      <div class="rpt-section-title" style="background:#185FA5;">MIS Production Flow</div>
+      <div style="padding:16px 18px;font-size:.82rem;line-height:1.8;">
+        <strong>1.</strong> Scheduling opens <strong>＋ New Job</strong> or uses <strong>📥 Job Queue</strong> to pre-fill from the Job Status Sheet<br>
+        <strong>2.</strong> Fill in Customer, Order In Date, Due Date, Description, Quantity and MR fields → <strong>Schedule This Job</strong><br>
+        <strong>3.</strong> Click <strong>📋 Material Req</strong> to print or save the MR to Google Drive<br>
+        <strong>4.</strong> Click <strong>➕ Begin Next Operation</strong> → select Department, Machine, Operator → job moves to that dept<br>
+        <strong>5.</strong> Department operators log Make Ready, Production, and Units as they work<br>
+        <strong>6.</strong> When done, operator clicks <strong>✓ Complete</strong> or <strong>⏹ Stop Production</strong> → card shows <em>Awaiting Next</em><br>
+        <strong>7.</strong> Next department clicks <strong>➕ Begin Next Operation</strong> to pull the job → repeat steps 5–7 per department<br>
+        <strong>8.</strong> Shipping/Inventory clicks <strong>✓ Mark Job Complete</strong> → job enters Archive after 3 days
+      </div>
+    </div>
+    <div class="rpt-section">
+      <div class="rpt-section-title" style="background:#27ae60;">Post-Production — Outside MIS</div>
+      <div style="padding:16px 18px;font-size:.82rem;line-height:1.8;">
+        <strong>1.</strong> Delivery to customer<br>
+        <strong>2.</strong> Invoice created in QuickBooks<br>
+        <strong>3.</strong> Job Jacket broken down and filed
+      </div>
+    </div>
+    <div class="rpt-section">
+      <div class="rpt-section-title">Key Rules</div>
+      <div style="padding:16px 18px;font-size:.82rem;line-height:1.8;">
+        <strong>One card per job</strong> — a job exists in exactly one department at a time. Moving it removes it from the previous dept.<br><br>
+        <strong>Jobs can skip departments</strong> — not every job goes through Folding, Bindery, Finishing, Mailing, and Fulfillment. Follow the Production Ticket specs.<br><br>
+        <strong>Jobs can regress</strong> — if rework is needed, use Begin Next Operation to send a job back to any previous department.<br><br>
+        <strong>Press counts press sheets</strong> — all other departments count ordered quantity. These are different numbers.
+      </div>
+    </div>
+  </div>
+
+  <!-- ROLES -->
+  <div id="help_roles" class="rpt-panel hidden">
+    <div class="rpt-section">
+      <div class="rpt-section-title">User Roles & Permissions</div>
+      <table class="rpt-table">
+        <thead><tr><th>Action</th><th>Admin</th><th>Manager</th><th>Operator</th></tr></thead>
+        <tbody>
+          <tr><td>View all departments</td><td>✅</td><td>✅</td><td>✅</td></tr>
+          <tr><td>Create new jobs (＋ New Job)</td><td>✅</td><td>✅</td><td>❌</td></tr>
+          <tr><td>Job Queue (import from sheet)</td><td>✅</td><td>✅</td><td>❌</td></tr>
+          <tr><td>Begin Next Operation</td><td>✅</td><td>✅</td><td>✅</td></tr>
+          <tr><td>Log make ready & production</td><td>✅</td><td>✅</td><td>✅</td></tr>
+          <tr><td>Log units & downtime</td><td>✅</td><td>✅</td><td>✅</td></tr>
+          <tr><td>Reopen completed jobs</td><td>✅</td><td>✅</td><td>✅</td></tr>
+          <tr><td>✏ Edit job (machine/operator/date)</td><td>✅</td><td>✅</td><td>❌</td></tr>
+          <tr><td>🗑 Delete job</td><td>✅</td><td>✅</td><td>❌</td></tr>
+          <tr><td>Dashboard departmental view</td><td>✅</td><td>✅</td><td>❌</td></tr>
+          <tr><td>All Reports</td><td>✅</td><td>✅</td><td>❌</td></tr>
+          <tr><td>Material Requisition</td><td>✅</td><td>✅</td><td>✅</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- DEPARTMENTS -->
+  <div id="help_depts" class="rpt-panel hidden">
+    <div class="rpt-section">
+      <div class="rpt-section-title">Standard Departments — Full Production Tracking</div>
+      <div style="padding:14px 18px;font-size:.82rem;line-height:1.8;color:var(--muted);">Press, Folding, Bindery, Finishing, Mailing</div>
+      <table class="rpt-table">
+        <thead><tr><th>Step</th><th>Action</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Make Ready</strong></td><td>Auto-starts when assigned. Elapsed timer shown.</td><td>Turns yellow at 30 min, red at 1 hr</td></tr>
+          <tr><td><strong>Stop MR</strong></td><td>Click ⏹ Stop Make Ready → enter stop time</td><td>MR hours saved to job history</td></tr>
+          <tr><td><strong>Production</strong></td><td>Click + Log Units at intervals</td><td>Press = press sheets · All others = ordered qty</td></tr>
+          <tr><td><strong>Downtime</strong></td><td>Click ⚠ Report Downtime → select reason</td><td>Deducted from net production time</td></tr>
+          <tr><td><strong>Stop Production</strong></td><td>Click ⏹ Stop Production → enter stop time</td><td>Job becomes ✓ Awaiting Next Dept</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="rpt-section" style="margin-top:16px;">
+      <div class="rpt-section-title">Simple Departments — Elapsed Time Only</div>
+      <div style="padding:14px 18px;font-size:.82rem;line-height:1.8;color:var(--muted);">Prepress, Fulfillment, Shipping/Inventory</div>
+      <table class="rpt-table">
+        <thead><tr><th>Step</th><th>Action</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td><strong>In Progress</strong></td><td>Auto-starts when assigned. Elapsed timer shown.</td><td>No unit logging required</td></tr>
+          <tr><td><strong>Complete</strong></td><td>Click ✓ Complete → Begin Next Operation modal opens</td><td>Time archived into job history</td></tr>
+          <tr><td><strong>Prepress loops</strong></td><td>Prepress can be repeated for revisions, plate remakes, etc.</td><td>Each loop tracked separately with time</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="rpt-section" style="margin-top:16px;">
+      <div class="rpt-section-title">Machines by Department</div>
+      <table class="rpt-table">
+        <thead><tr><th>Department</th><th>Machines / Operations</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Prepress</strong></td><td>Artwork Prep & Proof Approval · Imposition & Plate Making · Database Management</td></tr>
+          <tr><td><strong>Press</strong></td><td>Heidelberg Press 1–3 · Shinohara Press 4 · Fuji Digital Color · Ricoh 9100 · Ricoh 9200 · Ricoh 8000 · Digital Envelope Printer · Printmaster</td></tr>
+          <tr><td><strong>Folding</strong></td><td>F1-MBO-B26-1 · F2-MBO-B26-2 · F3-MBO-B30 · F4-STAHL-STA1 · F5-STAHL-STA2 · F6-STAHL-B14 · F7-BAUM-2020 · F8-STAHL-B14</td></tr>
+          <tr><td><strong>Bindery</strong></td><td>Cutting · Die-Cutting · Scoring & Creasing · Collating · Binding · Stitching</td></tr>
+          <tr><td><strong>Finishing</strong></td><td>Outsourcing · Kitting · Shrink-Wrapping · Laminating · UV Coating</td></tr>
+          <tr><td><strong>Mailing</strong></td><td>Inkjet Addressing · Inserting · Sealing & Tabbing</td></tr>
+          <tr><td><strong>Fulfillment</strong></td><td>Fulfillment Services</td></tr>
+          <tr><td><strong>Shipping/Inventory</strong></td><td>Out for Delivery · Hold for Inventory</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- REPORTS GUIDE -->
+  <div id="help_reports_guide" class="rpt-panel hidden">
+    <div class="rpt-section">
+      <table class="rpt-table">
+        <thead><tr><th>Report</th><th>What it shows</th><th>Best used for</th></tr></thead>
+        <tbody>
+          <tr><td><strong>🔍 Job Lookup</strong></td><td>Full production history for any job — all departments, operators, MR hrs, prod hrs, units</td><td>Customer inquiries, pre-invoice review</td></tr>
+          <tr><td><strong>📅 Due Today</strong></td><td>All jobs due today with lead time, dept, and status. Overdue in red.</td><td>Morning standup, priority calls</td></tr>
+          <tr><td><strong>📆 Due This Week</strong></td><td>7-day forward view with lead time and order-in date</td><td>Weekly production planning</td></tr>
+          <tr><td><strong>👤 By Customer</strong></td><td>All active jobs grouped alphabetically by customer</td><td>Customer status calls, account reviews</td></tr>
+          <tr><td><strong>⏱ Long Make Readies</strong></td><td>Top 20 longest MR times, flagged yellow &gt;1hr, red &gt;2hr</td><td>Troubleshooting press/equipment issues</td></tr>
+          <tr><td><strong>⚠ Idle Jobs</strong></td><td>Active jobs not touched in 48+ hours</td><td>Daily check — prevent jobs falling through cracks</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="rpt-section" style="margin-top:16px;">
+      <div class="rpt-section-title">Lead Time Reference</div>
+      <table class="rpt-table">
+        <thead><tr><th>Lead Time</th><th>Days</th><th>Color</th><th>Action</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Same Day</strong></td><td>0 days</td><td style="color:var(--red);">■ Red</td><td>Immediate priority — all hands</td></tr>
+          <tr><td><strong>Next Day</strong></td><td>1 day</td><td style="color:var(--red);">■ Red</td><td>Priority scheduling today</td></tr>
+          <tr><td><strong>2–3 Day Rush</strong></td><td>2–3 days</td><td style="color:#e67e22;">■ Orange</td><td>Confirm dept sequence ASAP</td></tr>
+          <tr><td><strong>X Days</strong></td><td>4–7 days</td><td style="color:var(--green);">■ Green</td><td>Normal production cycle</td></tr>
+          <tr><td><strong>2+ Weeks</strong></td><td>14+ days</td><td style="color:var(--green);">■ Green</td><td>Standard scheduling</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- PASSWORDS -->
+  <div id="help_passwords" class="rpt-panel hidden">
+    <div class="rpt-section">
+      <div class="rpt-section-title">Login Credentials</div>
+      <table class="rpt-table">
+        <thead><tr><th>Username</th><th>Password</th><th>Role</th><th>Who</th></tr></thead>
+        <tbody>
+          <tr><td><strong>admin</strong></td><td style="font-family:monospace;">epmp2026</td><td>Admin</td><td>Charles</td></tr>
+          <tr><td><strong>manager</strong></td><td style="font-family:monospace;">epmp2026</td><td>Manager</td><td>Victor C. · Carlos V. · Ismael G. · Frank A. · Jorge B. · Eddie A.</td></tr>
+          <tr><td><strong>prepress</strong></td><td style="font-family:monospace;">epmp2026</td><td>Production</td><td>Aaron G. · Emma M. · Humberto E. · Nate R.</td></tr>
+          <tr><td><strong>press</strong></td><td style="font-family:monospace;">epmp2026</td><td>Production</td><td>Jose R. · Victor G. · Tony H.</td></tr>
+          <tr><td><strong>bindery</strong></td><td style="font-family:monospace;">epmp2026</td><td>Production</td><td>David C. · Gabriela P. · Hector M. · Jonhyel G. · Ruben T. · Leo R. · Danny T. · Patrick E. · Miriam A. · Paul A. · Becky B. · Rosa D.</td></tr>
+          <tr><td><strong>mailing</strong></td><td style="font-family:monospace;">epmp2026</td><td>Production</td><td>Same staff as Bindery</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="rpt-section" style="margin-top:16px;">
+      <div class="rpt-section-title">Quick Troubleshooting</div>
+      <table class="rpt-table">
+        <thead><tr><th>Issue</th><th>Fix</th></tr></thead>
+        <tbody>
+          <tr><td>Can't log in</td><td>Check username is all lowercase. Use SHOW button to verify password. Try incognito window.</td></tr>
+          <tr><td>Auto-fill not working</td><td>Must be on the live site (epmptx.github.io/print-mis) — does not work on local file.</td></tr>
+          <tr><td>Save to Drive fails</td><td>Must be on live site. Apps Script must be deployed as latest version.</td></tr>
+          <tr><td>Job showing in wrong dept</td><td>Use ✏ Edit to change the department, machine, and operator.</td></tr>
+          <tr><td>Job accidentally completed</td><td>Click ↩ Reopen on the job card to return it to active production.</td></tr>
+          <tr><td>Reports show no data</td><td>Reports pull from this device's data. Create and complete a test job to generate entries.</td></tr>
+          <tr><td>Production Log empty</td><td>Run EPMP Job Tools → 📊 Setup Production Log from the Job Status Sheet, then complete jobs on the live site.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ REPORTS ═══ -->
+<div id="view_report" class="content hidden">
+  <div class="view-header">
+    <h2 class="view-title">📄 Reports</h2>
+    <button class="btn btn-secondary btn-sm" onclick="window.print()">🖨 Print</button>
+  </div>
+
+  <!-- Report Tab Nav -->
+  <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:18px;border-bottom:2px solid var(--border);padding-bottom:10px;">
+    <button class="rpt-tab active" onclick="showReport('job_lookup',this)">🔍 Job Lookup</button>
+    <button class="rpt-tab" onclick="showReport('due_today',this)">📅 Due Today</button>
+    <button class="rpt-tab" onclick="showReport('due_week',this)">📆 Due This Week</button>
+    <button class="rpt-tab" onclick="showReport('by_customer',this)">👤 By Customer</button>
+    <button class="rpt-tab" onclick="showReport('long_mr',this)">⏱ Long Make Readies</button>
+    <button class="rpt-tab" onclick="showReport('idle_jobs',this)">⚠ Idle Jobs</button>
+  </div>
+
+  <!-- Job Lookup -->
+  <div id="rpt_job_lookup" class="rpt-panel">
+    <div style="display:flex;gap:10px;align-items:center;margin-bottom:16px;">
+      <div class="scan-wrap" style="flex:1;max-width:340px;">
+        <input type="text" id="report_job_input" placeholder="Enter or scan Job Number..."
+          style="font-size:.9rem;padding:10px 14px;"
+          oninput="if(this.value.length>3) loadJobReport()">
+        <button class="btn-scan" onclick="openScanner('report_job_input','Job Number')" title="Scan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></button>
+      </div>
+      <button class="btn btn-primary" onclick="loadJobReport()">🔍 Pull Report</button>
+    </div>
+    <div id="report_content">
+      <div style="text-align:center;padding:40px;color:var(--muted);">
+        <div style="font-size:2rem;">📄</div>
+        <div style="font-size:.85rem;margin-top:8px;">Scan a job barcode or enter a job number above</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Due Today -->
+  <div id="rpt_due_today" class="rpt-panel hidden">
+    <div id="rpt_due_today_content"></div>
+  </div>
+
+  <!-- Due This Week -->
+  <div id="rpt_due_week" class="rpt-panel hidden">
+    <div id="rpt_due_week_content"></div>
+  </div>
+
+  <!-- By Customer -->
+  <div id="rpt_by_customer" class="rpt-panel hidden">
+    <div id="rpt_by_customer_content"></div>
+  </div>
+
+  <!-- Long Make Readies -->
+  <div id="rpt_long_mr" class="rpt-panel hidden">
+    <div id="rpt_long_mr_content"></div>
+  </div>
+
+  <!-- Idle Jobs -->
+  <div id="rpt_idle_jobs" class="rpt-panel hidden">
+    <div id="rpt_idle_jobs_content"></div>
+  </div>
+</div>
+
+<!-- ═══ IMPORT FROM SHEET MODAL ═══ -->
+
+<!-- ═══ EDIT JOB MODAL ═══ -->
+<div id="edit_job_modal" class="modal-overlay hidden">
+  <div class="modal" style="max-width:420px;">
+    <div class="modal-header">
+      <span class="modal-title">✏ Edit Job</span>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="edit_job_info" style="background:#f8f8f8;border-radius:6px;padding:8px 14px;margin-bottom:16px;font-size:.8rem;color:var(--muted);"></div>
+
+      <label>Department</label>
+      <select id="edit_dept" onchange="onEditDeptChange()" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:6px;font-size:.88rem;margin-bottom:12px;">
+        <option value="">— Select Department —</option>
+        <option>Prepress</option><option>Press</option><option>Folding</option>
+        <option>Bindery</option><option>Finishing</option><option>Mailing</option>
+        <option>Fulfillment</option><option>Shipping/Inventory</option>
+      </select>
+
+      <label>Machine / Operation</label>
+      <select id="edit_machine" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:6px;font-size:.88rem;margin-bottom:12px;">
+        <option value="">— Select Department First —</option>
+      </select>
+
+      <label>Operator</label>
+      <select id="edit_operator" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:6px;font-size:.88rem;margin-bottom:12px;">
+        <option value="">— Select Operator —</option>
+        <optgroup label="── Management ──"><option>Carlos</option><option>Ismael</option><option>Jorge</option><option>Frank</option></optgroup>
+        <optgroup label="── Prepress ──"><option>Aaron</option><option>Nate</option><option>Emma</option><option>Humberto</option></optgroup>
+        <optgroup label="── Press ──"><option>Victor</option><option>Tony</option><option>Pepe</option></optgroup>
+        <optgroup label="── Bindery ──"><option>Becky</option><option>Hector</option><option>Ruben</option><option>David</option><option>Leo</option><option>Paul</option></optgroup>
+      </select>
+
+      <label>Due Date</label>
+      <input type="date" id="edit_due_date" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:6px;font-size:.88rem;margin-bottom:4px;">
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveEditJob()">✓ Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ BEGIN NEXT OPERATION MODAL ═══ -->
+<div id="next_op_modal" class="modal-overlay hidden">
+  <div class="modal" style="max-width:440px;">
+    <div class="modal-title">➕ Begin Next Operation</div>
+    <div id="next_op_job_info" style="background:#f8f8f8;border-radius:6px;padding:10px 14px;margin-bottom:16px;font-size:.8rem;color:var(--muted);"></div>
+    <div style="margin-bottom:12px;">
+      <label style="display:block;font-size:.68rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:6px;">Department</label>
+      <select id="next_op_dept" onchange="onNextOpDeptChange()" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:6px;font-size:.9rem;">
+        <option value="">— Select Department —</option>
+        <option value="Prepress">Prepress</option>
+        <option value="Press">Press</option>
+        <option value="Folding">Folding</option>
+        <option value="Bindery">Bindery</option>
+        <option value="Finishing">Finishing</option>
+        <option value="Outsourcing">Outsourcing</option>
+        <option value="Mailing">Mailing</option>
+        <option value="Fulfillment">Fulfillment</option>
+        <option value="Shipping/Inventory">Shipping/Inventory</option>
+      </select>
+    </div>
+    <div style="margin-bottom:12px;" id="next_op_operation_wrap">
+      <label style="display:block;font-size:.68rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:6px;">Operation</label>
+      <select id="next_op_operation" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:6px;font-size:.9rem;">
+        <option value="">— Select Department First —</option>
+      </select>
+      <!-- Shown only for Outsourcing -->
+      <input type="text" id="next_op_vendor" placeholder="Enter vendor / company name..."
+        style="display:none;width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:6px;font-size:.9rem;margin-top:8px;"
+        oninput="document.getElementById('next_op_operation').value=this.value;">
+    </div>
+    <div style="margin-bottom:16px;">
+      <label style="display:block;font-size:.68rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:6px;">Assign Operator</label>
+      <select id="next_op_operator" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:6px;font-size:.9rem;">
+        <option value="">— Select Operator —</option>
+        <optgroup label="── Management ──">
+          <option>Victor C.</option><option>Carlos V.</option><option>Ismael G.</option>
+          <option>Frank A.</option><option>Jorge B.</option><option>Eddie A.</option>
+        </optgroup>
+        <optgroup label="── Prepress ──">
+          <option>Aaron G.</option><option>Emma M.</option>
+          <option>Humberto E.</option><option>Nate R.</option>
+        </optgroup>
+        <optgroup label="── Press ──">
+          <option>Jose R.</option><option>Victor G.</option><option>Tony H.</option>
+        </optgroup>
+        <optgroup label="── Bindery / Mailing ──">
+          <option>Becky B.</option><option>Danny T.</option><option>David C.</option>
+          <option>Gabriela P.</option><option>Hector M.</option><option>Jonhyel G.</option>
+          <option>Leo R.</option><option>Miriam A.</option><option>Patrick E.</option>
+          <option>Paul A.</option><option>Rosa D.</option><option>Ruben T.</option>
+        </optgroup>
+      </select>
+    </div>
+    <div style="display:flex;gap:10px;">
+      <button class="btn btn-primary" style="flex:1;" onclick="confirmBeginNextOp()">▶ Begin Operation</button>
+      <button class="btn btn-secondary" onclick="document.getElementById('next_op_modal').classList.add('hidden')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MATERIAL REQUISITION MODAL ═══ -->
+<div id="mr_modal" class="modal-overlay hidden">
+  <div class="modal" style="max-width:600px;">
+    <div class="modal-title">Material Requisition</div>
+    <div id="mr_preview" style="border:1px solid var(--border);border-radius:6px;padding:20px;margin-bottom:16px;background:#fff;"></div>
+    <div style="display:flex;gap:10px;">
+      <button class="btn btn-primary" onclick="printMR()">🖨 Print MR</button>
+      <button class="btn btn-secondary" onclick="saveMRtoDrive()">💾 Save to Drive</button>
+      <button class="btn btn-secondary" onclick="document.getElementById('mr_modal').classList.add('hidden')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ DASHBOARD ═══ -->
+<div id="view_dash" class="content hidden">
+  <div class="refresh-bar">
+    <span class="refresh-lbl" id="refresh_lbl">Auto-refreshes every 30s</span>
+    <button class="btn btn-secondary btn-sm" onclick="renderDashboard()">↻ Refresh</button>
+  </div>
+  <div class="dash-summary" id="dash_summary"></div>
+  <div id="dept_report"></div>
+  <div class="dept-header"><div class="dept-dot" style="background:#2ecc71"></div><div class="dept-title">Scheduling</div><div class="dept-count" id="cnt_sched"></div></div>
+  <div class="machine-cards" id="cards_sched"></div>
+  <div class="dept-header"><div class="dept-dot" style="background:#9b59b6"></div><div class="dept-title">Prepress</div><div class="dept-count" id="cnt_prepress"></div></div>
+  <div class="machine-cards" id="cards_prepress"></div>
+  <div class="dept-header"><div class="dept-dot" style="background:var(--press)"></div><div class="dept-title">Press</div><div class="dept-count" id="cnt_press"></div></div>
+  <div class="machine-cards" id="cards_press"></div>
+  <div class="dept-header"><div class="dept-dot" style="background:var(--fold)"></div><div class="dept-title">Folding</div><div class="dept-count" id="cnt_fold"></div></div>
+  <div class="machine-cards" id="cards_fold"></div>
+  <div class="dept-header"><div class="dept-dot" style="background:var(--bind)"></div><div class="dept-title">Bindery</div><div class="dept-count" id="cnt_bind"></div></div>
+  <div class="machine-cards" id="cards_bind"></div>
+  <div class="dept-header"><div class="dept-dot" style="background:#1abc9c"></div><div class="dept-title">Finishing</div><div class="dept-count" id="cnt_finish"></div></div>
+  <div class="machine-cards" id="cards_finish"></div>
+  <div class="dept-header"><div class="dept-dot" style="background:#3498db"></div><div class="dept-title">Mailing</div><div class="dept-count" id="cnt_mail"></div></div>
+  <div class="machine-cards" id="cards_mail"></div>
+</div>
+
+<!-- ═══ ARCHIVE ═══ -->
+<div id="view_archive" class="content hidden">
+  <div class="view-header">
+    <h2 class="view-title">Job Archive</h2>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+      <input type="text" id="arch_search" placeholder="Search job #, customer, operator..." style="width:220px;font-size:.82rem;padding:7px 10px;" oninput="renderArchive()">
+      <select id="arch_op" style="width:180px;font-size:.82rem;padding:7px 10px;" onchange="renderArchive()">
+        <option value="">All Departments</option>
+        <option value="Scheduling">Scheduling</option>
+        <option value="Prepress">Prepress</option>
+        <option value="Press">Press</option>
+        <option value="Folding">Folding</option>
+        <option value="Bindery">Bindery</option>
+        <option value="Finishing">Finishing</option>
+        <option value="Mailing">Mailing</option>
+        <option value="Fulfillment">Fulfillment</option>
+        <option value="Shipping/Inventory">Shipping/Inventory</option>
+      </select>
+      <input type="date" id="arch_from" style="width:145px;font-size:.82rem;padding:7px 10px;" oninput="renderArchive()">
+      <span style="font-size:.75rem;color:var(--muted);">to</span>
+      <input type="date" id="arch_to" style="width:145px;font-size:.82rem;padding:7px 10px;" oninput="renderArchive()">
+      <button class="btn btn-secondary btn-sm" onclick="clearArchiveFilters()">✕ Clear</button>
+      <button class="btn btn-secondary btn-sm" onclick="exportArchive()">⬇ Export CSV</button>
+    </div>
+  </div>
+
+  <!-- Job Reopen Lookup -->
+  <div style="display:flex;gap:10px;align-items:center;padding:12px 16px;background:#fff8e6;border:1px solid #f0c040;border-radius:8px;margin-bottom:16px;">
+    <span style="font-size:.78rem;font-weight:700;color:#7a5a00;white-space:nowrap;">↩ Reopen a Job</span>
+    <input type="text" id="arch_reopen_search" placeholder="Type or scan job number to pull back..." style="flex:1;max-width:280px;font-size:.82rem;padding:7px 10px;"
+      oninput="this.value=formatJobNumber(this.value)"
+      onkeydown="if(event.key==='Enter') searchArchiveAndReopen(this.value)">
+    <button class="btn btn-sm" style="background:#e67e22;color:#fff;" onclick="searchArchiveAndReopen(document.getElementById('arch_reopen_search').value)">🔍 Find &amp; Reopen</button>
+    <span style="font-size:.75rem;color:#7a5a00;">Find an archived job and return it to Shipping/Inventory</span>
+  </div>
+  <div class="arch-summary" id="arch_summary"></div>
+  <div id="arch_reopen_result" class="hidden" style="margin-bottom:16px;"></div>
+
+  <!-- Department sections -->
+  <div id="arch_prepress_section">
+    <div class="dept-header" style="margin-top:8px;">
+      <div class="dept-dot" style="background:#9b59b6"></div>
+      <div class="dept-title">Prepress</div>
+      <div class="dept-count" id="arch_prepress_count"></div>
+    </div>
+    <div class="arch-table-wrap" id="arch_prepress_table"></div>
+  </div>
+  <div id="arch_press_section">
+    <div class="dept-header" style="margin-top:16px;">
+      <div class="dept-dot" style="background:var(--press)"></div>
+      <div class="dept-title">Press</div>
+      <div class="dept-count" id="arch_press_count"></div>
+    </div>
+    <div class="arch-table-wrap" id="arch_press_table"></div>
+  </div>
+  <div id="arch_fold_section">
+    <div class="dept-header" style="margin-top:16px;">
+      <div class="dept-dot" style="background:var(--fold)"></div>
+      <div class="dept-title">Folding</div>
+      <div class="dept-count" id="arch_fold_count"></div>
+    </div>
+    <div class="arch-table-wrap" id="arch_fold_table"></div>
+  </div>
+  <div id="arch_bind_section">
+    <div class="dept-header" style="margin-top:16px;">
+      <div class="dept-dot" style="background:var(--bind)"></div>
+      <div class="dept-title">Bindery &amp; Finishing</div>
+      <div class="dept-count" id="arch_bind_count"></div>
+    </div>
+    <div class="arch-table-wrap" id="arch_bind_table"></div>
+  </div>
+  <div id="arch_mail_section">
+    <div class="dept-header" style="margin-top:16px;">
+      <div class="dept-dot" style="background:#3498db"></div>
+      <div class="dept-title">Mailing</div>
+      <div class="dept-count" id="arch_mail_count"></div>
+    </div>
+    <div class="arch-table-wrap" id="arch_mail_table"></div>
+  </div>
+  <div id="arch_ship_section">
+    <div class="dept-header" style="margin-top:16px;">
+      <div class="dept-dot" style="background:var(--gray)"></div>
+      <div class="dept-title">Shipping</div>
+      <div class="dept-count" id="arch_ship_count"></div>
+    </div>
+    <div class="arch-table-wrap" id="arch_ship_table"></div>
+  </div>
+</div>
+
+<!-- Hidden iOS camera input for QR scanning -->
+<input type="file" id="ios_qr_input" accept="image/*" capture="environment" style="display:none;">
+
+<!-- ═══ QR SCANNER OVERLAY ═══ -->
+<div id="scan_overlay" class="scan-overlay hidden">
+  <video id="scan_video" autoplay playsinline muted></video>
+  <canvas id="scan_canvas"></canvas>
+  <button class="scan-close" onclick="closeScanner()">✕</button>
+  <div class="scan-ui">
+    <div class="scan-field-label">Scanning: <span id="scan_field_label">—</span></div>
+    <!-- Wide viewfinder works for both 1D barcodes and QR codes -->
+    <div class="scan-viewfinder" style="width:300px;height:160px;">
+      <div class="scan-corner tl"></div>
+      <div class="scan-corner tr"></div>
+      <div class="scan-corner bl"></div>
+      <div class="scan-corner br"></div>
+      <div class="scan-line"></div>
+    </div>
+    <div class="scan-hint">Center barcode or QR code in the frame<br>Hold 4–8 inches away — camera will autofocus</div>
+  </div>
+</div>
+
+<!-- ═══ MODAL ═══ -->
+<div id="modal_overlay" class="modal-overlay hidden" onclick="closeModalOutside(event)">
+  <div class="modal-box" id="modal_box">
+    <div id="modal_content"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="app.js"></script>
+
+</body>
+</html>
